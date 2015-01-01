@@ -93,6 +93,7 @@ class RandomSampler(object):
         self.ratio = ratio
         self.filename = filename
 
+    @property
     def image_size(self):
         if self.given_image_size is not None:
             return self.given_image_size
