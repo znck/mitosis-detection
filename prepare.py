@@ -77,6 +77,9 @@ class Frame(object):
 
 class RandomSampler(object):
     def __init__(self, path, size=(1539, 1376), patch=(101, 101), verbose=1):
+        '''
+        Samples all the positive pixels or given no. of random pixels from all the images in a path.
+        '''
         self.verbose = verbose
         self._path = path
         self._files = read_all_files(path)
@@ -187,13 +190,15 @@ def read_all_files(path):
 class JsonIterator(object):
     def __init__(self, filename, size=(101, 101)):
         self.size = size
-        if type(filename) is basestring:
+        if type(filename) is str:
             filename = open(filename)
         self.raw = json.load(filename)
         self.files = self.raw.keys()
         self.f = 0
         self.i = 0
         self.image = np.asarray(Image.open(self.files[0]), dtype=np.float32).transpose(2, 0, 1)
+        # self.progress = Progbar(len(self.files))
+        # self.progress.update(0)
 
     def __iter__(self):
         self.i = 0
@@ -201,20 +206,26 @@ class JsonIterator(object):
         return self
 
     def next(self):
-        if self.f < len(self.files):
-            if self.i + 1 is len(self.files[self.f]):
-                self.f += 1
-                self.i = 0
-                if self.f >= len(self.files):
-                    raise StopIteration()
-                self.image = np.asarray(Image.open(self.files[self.f]), dtype=np.float32).transpose(2, 0, 1)
-            else:
-                self.i += 1
-            x, y, p = self.raw[self.files[self.f]][self.i]
-            return patch_at(self.image, x, y, self.size), p
-        else:
+        if self.f >= len(self.files):
+            raise StopIteration()
+        ofname = fname = self.files[self.f]
+
+        self.i += 1
+
+        while (self.f < len(self.files) and self.i >= len(self.raw[fname])):
+            # self.progress.update(self.f)
+            self.f += 1
+            self.i = 0
+            fname = self.files[self.f]
+
+        if (self.f >= len(self.files)):
             raise StopIteration()
 
+        if ofname != fname:
+            self.image = np.asarray(Image.open(self.files[self.f]), dtype=np.float32).transpose(2, 0, 1)
+
+        x, y, p = self.raw[fname][self.i]
+        return patch_at(self.image, x, y, self.size), p
 
 def patch_at(image, x, y, size=(101, 101)):
     x -= size[0] / 2

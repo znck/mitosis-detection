@@ -6,7 +6,9 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.layers.core import Dense, Flatten, Activation
 from keras.models import Sequential
 
-from dataset import read_all_files, Frame
+#from dataset import read_all_files, Frame
+import numpy as np
+from prepare import JsonIterator
 
 
 def model1():
@@ -80,6 +82,51 @@ def produce_probability_map(path):
             model.train_on_batch(batch[0], batch[1], accuracy=True)
     model.save_weights(name, True)
 
+
+batch1 = JsonIterator('/media/ankur/Seagate Backup Plus Drive/mark-4/training_aperio/positives.json')
+pos = []
+y_pos = []
+i = 0
+for patch, prob in batch1:
+    i += 1
+    pos.append(patch)
+    y_pos.append(prob)
+    if i >= 500:
+        break
+
+batch2 = JsonIterator('/media/ankur/Seagate Backup Plus Drive/mark-4/training_aperio/negatives.json')
+neg = []
+y_neg = []
+i = 0
+max_patches = 500
+for patch, prob in batch2:
+    i += 1
+    neg.append(patch)
+    y_neg.append(prob)
+    if i >= max_patches:
+        break
+
+(pos.append(it) for it in neg)
+(y_pos.append(it) for it in y_neg)
+print len(pos)
+itr = np.asarray(range(len(pos)))
+np.random.shuffle(itr)
+
+x = []
+y = []
+for i in itr:
+    x.append(pos[i])
+    y.append(y_pos[i])
+
+
+nn1 = model_base()
+y =np.asarray(y)
+x = np.asarray(x)
+print x.shape, y.shape
+nn1.fit(x, y, nb_epoch=10, batch_size=100, verbose=1)
+
+#np.random.shuffle(data)
+#x,y = data
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
