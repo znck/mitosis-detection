@@ -1,14 +1,17 @@
 #! /usr/bin/env python
+import glob
 import os
-import sys
+import traceback
+import argparse
+import signal
 
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.layers.core import Dense, Flatten, Activation
 from keras.models import Sequential
 
-#from dataset import read_all_files, Frame
-import numpy as np
-from prepare import JsonIterator
+from prepare import JsonIterator, RandomSampler, BatchGenerator, TT
+
+import theano
 
 
 def model1():
@@ -63,73 +66,92 @@ def model_base():
     return nn
 
 
-# noinspection PyProtectedMember
-def produce_probability_map(path):
-    files = read_all_files(path)
-    files = files[:2]
-    name = os.path.basename(path) + '.model'
+def _task_train_filter(arguments):
+    if arguments.disable_optimisation:
+        print TT.WARNING + "> Theano Config :: optimizer=None, exception_verbosity=high", TT.END
+        theano.config.optimizer = 'None'
+        theano.config.exception_verbosity = 'high'
+
+    print TT.INFO + "> Training non competent pixel filter", TT.END
+    path = arguments.path
+    assert os.path.exists(path), path + " does not exists"
+    path = os.path.abspath(path)
+
+    assert len(glob.glob(os.path.join(path, '*/mitosis'))), "No valid mitosis dataset provided."
+
+    load_path = os.path.join(path, 'weights.npy')
+    if arguments.model:
+        load_path = os.path.abspath(arguments.model)
+
+    # Init Random Sampler
+    dataset = RandomSampler(path, verbose=arguments.verbose)
+
+    positive, n_positive = dataset.positive()
+    sample, n_sample = dataset.sample(n_positive)
+
+    if arguments.verbose:
+        print TT.INFO + "> Compiling model...", TT.END
     model = model_base()
-    epoch = 0
-    b = 0
-    batch_size = 100
-    for f in files:
-        frame = Frame(f[0], f[1])
-        batches = frame.batches(batch_size)
-        epoch += 1
-        for batch in batches:
-            b += 1
-            print "File: %d Batch: %d" % (epoch, b)
-            model.train_on_batch(batch[0], batch[1], accuracy=True)
-    model.save_weights(name, True)
+
+    if os.path.exists(load_path):
+        print TT.INFO, "Loading model from %s" % load_path, TT.END
+        model.load_weights(load_path)
+    n_epoch = arguments.epoch
+
+    def save_weights():
+        model.save_weights(load_path)
+        exit(0)
+
+    signal.signal(signal.SIGINT, save_weights)
+
+    val_split = .3
+    if not arguments.validation:
+        val_split = .0
+
+    for epoch in xrange(n_epoch):
+        print TT.SUCCESS + "> Epoch %d or %d" % (epoch + 1, n_epoch), TT.END
+        for X_train, Y_train in BatchGenerator(JsonIterator(positive), n_positive, JsonIterator(sample), n_sample,
+                                               arguments.batch):
+            model.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True, validation_split=val_split)
+        sample, n_sample = dataset.sample(n_positive)
+
+    model.save_weights(load_path)
 
 
-batch1 = JsonIterator('/media/ankur/Seagate Backup Plus Drive/mark-4/training_aperio/positives.json')
-pos = []
-y_pos = []
-i = 0
-for patch, prob in batch1:
-    i += 1
-    pos.append(patch)
-    y_pos.append(prob)
-    if i >= 500:
-        break
+def _parse_args():
+    stub = argparse.ArgumentParser(description="Mitosis Detection Task Runner")
+    stub.add_argument("task", help="Run task. (train-filter, train, test, predict)",
+                      choices=['train-filter', 'train', 'test', 'predict'], metavar="task")
+    stub.add_argument("path", type=str, help="Directory containing mitosis images", metavar="path")
+    stub.add_argument("--epoch", type=int, help="Number of epochs. (Default: 1)", default=1)
+    stub.add_argument("--batch", type=int, help="Size of batch fits in memory. (Default: 1000)", default=1000)
+    stub.add_argument("--mini-batch", type=int, help="Size of training batch. (Default: 50)", default=50)
+    stub.add_argument("-v", action="store_true", help="Increase verbosity. (Default: Disabled)", default=False,
+                      dest='verbose')
+    stub.add_argument("--model", type=str, help="Saved model weights. (Default: ${path}/weights.npy)")
+    stub.add_argument("--no-validate", action='store_false', help="Disable validation. (Default: Enabled)",
+                      default=True,
+                      dest='validation')
+    stub.add_argument("--no-optimisation", action='store_true',
+                      help="Disable theano optimisations. (Default: Disabled)", default=False,
+                      dest="disable_optimisation")
 
-batch2 = JsonIterator('/media/ankur/Seagate Backup Plus Drive/mark-4/training_aperio/negatives.json')
-neg = []
-y_neg = []
-i = 0
-max_patches = 500
-for patch, prob in batch2:
-    i += 1
-    neg.append(patch)
-    y_neg.append(prob)
-    if i >= max_patches:
-        break
+    return stub
 
-(pos.append(it) for it in neg)
-(y_pos.append(it) for it in y_neg)
-print len(pos)
-itr = np.asarray(range(len(pos)))
-np.random.shuffle(itr)
-
-x = []
-y = []
-for i in itr:
-    x.append(pos[i])
-    y.append(y_pos[i])
-
-
-nn1 = model_base()
-y =np.asarray(y)
-x = np.asarray(x)
-print x.shape, y.shape
-nn1.fit(x, y, nb_epoch=10, batch_size=100, verbose=1)
-
-#np.random.shuffle(data)
-#x,y = data
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        produce_probability_map(sys.argv[1])
-    else:
-        print 'usage: %s <path>' % sys.argv[0]
+    parser = _parse_args()
+    args = parser.parse_args()
+
+    try:
+        if args.task == 'train-filter':
+            _task_train_filter(args)
+        else:
+            parser.print_help()
+            exit()
+    except AssertionError as e:
+        print TT.WARNING + e.message + TT.END
+        if args.verbose:
+            print TT.DANGER + traceback.format_exc() + TT.END
+    finally:
+        print '..'

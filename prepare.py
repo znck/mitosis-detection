@@ -8,82 +8,31 @@ import numpy as np
 import sys
 import PIL.Image as Image
 from keras.utils.generic_utils import Progbar
-from math import ceil, floor
 
 
-class Frame(object):
-    def __init__(self, filename, targets):
-        self._i = 0
-        self._n = 0
-        self._size = 1
-        self._eff_y = self._eff_x = 0
-        self._patch = (1, 1)
-        self.filename = filename
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                self.targets = np.genfromtxt(targets, delimiter=',')
-                if len(self.targets.shape) is 1 and len(self.targets) is 3:
-                    self.targets = np.asarray([self.targets])
-                elif len(self.targets.shape) is 2:
-                    pass
-                else:
-                    self.targets = np.asarray([])
-        except IOError:
-            self.targets = np.array([])
+class TT:
+    def __init__(self):
+        pass
 
-        self.image = np.asarray(Image.open(filename), dtype=np.float32).transpose(2, 0, 1)
-
-    def batches(self, size=500, patch=(101, 101)):
-        self._eff_x = self.image.shape[1] - patch[0] + 1
-        self._eff_y = self.image.shape[2] - patch[1] + 1
-        self._n = ceil(self._eff_x * self._eff_y / size)
-        self._i = 0
-        self._size = size
-        self._patch = patch
-        return self
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        if self._i < self._n:
-            i = self._i
-            pad_x = self._patch[0] / 2
-            pad_y = self._patch[1] / 2
-
-            batch_x = []
-            batch_y = []
-
-            for j in xrange(self._size):
-                pixel = (j + i * self._size)
-                x = pixel / self._eff_x + pad_x
-                y = pixel % self._eff_x + pad_y
-                p = 0.0
-                if pixel >= self._eff_x * self._eff_y:
-                    break
-                for target in self.targets:
-                    if int(target[0]) == x and int(target[1]) == y:
-                        p = float(target[2])
-                        break
-                batch_x.append(patch_at(self.image, x, y, self._patch))
-                batch_y.append(p)
-
-            self._i += 1
-            return np.asarray(batch_x), np.asarray(batch_y)
-        else:
-            raise StopIteration()
+    HEADER = '\033[95m'
+    INFO = '\033[94m'
+    SUCCESS = '\033[92m'
+    WARNING = '\033[93m'
+    DANGER = '\033[91m'
+    END = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 
 class RandomSampler(object):
-    def __init__(self, path, size=(1539, 1376), patch=(101, 101), verbose=1):
-        '''
+    def __init__(self, path, size=(1539, 1376), patch=(101, 101), verbose=True):
+        """
         Samples all the positive pixels or given no. of random pixels from all the images in a path.
-        '''
+        """
         self.verbose = verbose
         self._path = path
         self._files = read_all_files(path)
-        self._positives = self.positive()
+        self._positives = self.positive_sorted()
         self._size = size
         self._patch = patch
         self._eff_x = size[0] - patch[0] + 1
@@ -95,21 +44,24 @@ class RandomSampler(object):
         self._batch = 1
         self._n = self._pixels_per_image * len(self._files)
 
-    def batch(self, batch_size=100):
+    def set_batch_size(self, batch_size=100):
         self._batch = batch_size
         return self
 
-    def sample(self):
-        if self.verbose is 1:
-            print "Generating random sequence..."
+    def sample(self, batch_size=100):
+        self._batch = batch_size
+        if self.verbose:
+            print TT.INFO + "> Creating a random dataset...", TT.END
+            print TT.INFO + "> Generating random sequence...", TT.END
         indices = [int(random.uniform(0, self._n)) for i in xrange(0, self._batch)]
         sampled = {}
 
-        if self.verbose is 1:
-            print "Generating pixel array..."
+        if self.verbose:
+            print TT.INFO + "> Collecting random samples from dataset...", TT.END
         bar = Progbar(len(indices))
         i = 0
-        if self.verbose is 1:
+        count = 0
+        if self.verbose:
             bar.update(i)
         for index in indices:
             file_id = index / self._pixels_per_image
@@ -123,23 +75,37 @@ class RandomSampler(object):
             if filename in self._positives and (x * self._size[0] + y) in self._positives[filename]:
                 p = float(self._positives[filename][x * self._size[0] + y])
             sampled[filename].append((x, y, p))
-            if self.verbose is 1:
+            count += 1
+            if self.verbose:
                 i += 1
                 bar.update(i)
 
-        return sampled
+        return sampled, count
 
-    def positive(self):
+    def positive_sorted(self):
         if os.path.exists(os.path.join(self._path, 'positives_sorted.json')):
             return json.load(open(os.path.join(self._path, 'positives_sorted.json')))
 
+        normal, _, expanded = self.positive(True)
+
+        if False:
+            json.dump(normal, open(os.path.join(self._path, 'positives.json'), 'w'))
+            json.dump(expanded, open(os.path.join(self._path, 'positives_sorted.json'), 'w'))
+
+        return expanded
+
+    def positive(self, expand=False):
         files = read_all_files(self._path)
 
-        if self.verbose is 1:
+        if self.verbose:
+            print TT.INFO + "> Collecting positive samples from dataset...", TT.END
+
+        if self.verbose:
             print "%d files" % len(files)
 
         bar = Progbar(len(files))
         index = 0
+        count = 0
         if self.verbose is 1:
             bar.update(index)
         expanded = {}
@@ -159,13 +125,13 @@ class RandomSampler(object):
                         _y = y + j
                         expanded[f][_x * 1539 + _y] = p
                         normal[f].append((_x, _y, p))
+                        count += 1
             index += 1
             if self.verbose is 1:
                 bar.update(index)
-
-        json.dump(normal, open(os.path.join(self._path, 'positives.json'), 'w'))
-        json.dump(expanded, open(os.path.join(self._path, 'positives_sorted.json'), 'w'))
-        return expanded
+        if expand:
+            return normal, count, expanded
+        return normal, count
 
 
 def read_all_files(path):
@@ -187,45 +153,95 @@ def read_all_files(path):
     return files
 
 
-class JsonIterator(object):
-    def __init__(self, filename, size=(101, 101)):
-        self.size = size
-        if type(filename) is str:
-            filename = open(filename)
-        self.raw = json.load(filename)
-        self.files = self.raw.keys()
-        self.f = 0
+class BatchGenerator(object):
+    def __init__(self, positive, n_positive, sample, n_sample, batch_size, verbose=True):
+        """
+        :type positive: JsonIterator
+        :type n_positive: int
+        :type sample: JsonIterator
+        :type n_sample: int
+        :type batch_size: int
+        """
+        self.verbose = verbose
+        assert batch_size % 2 == 0, "Batch size should be even."
+        self.sample = sample
+        self.positive = positive
+        n_total = n_positive + n_sample
+        self.n = int(n_total / batch_size)
         self.i = 0
-        self.image = np.asarray(Image.open(self.files[0]), dtype=np.float32).transpose(2, 0, 1)
-        # self.progress = Progbar(len(self.files))
-        # self.progress.update(0)
+        self.batch_size = batch_size
 
     def __iter__(self):
-        self.i = 0
-        self.f = 0
         return self
 
     def next(self):
-        if self.f >= len(self.files):
+        if self.i < self.n:
+            self.i += 1
+            if self.verbose:
+                print TT.WARNING + "> Creating batch %d of %d" % (self.i, self.n), TT.END
+
+            x = []
+            y = []
+            count = 0
+            for patch, target in self.positive:
+                x.append(patch)
+                y.append(target)
+                count += 1
+                if count == self.batch_size / 2:
+                    break
+            for patch, target in self.sample:
+                x.append(patch)
+                y.append(target)
+                count += 1
+                if count == self.batch_size:
+                    break
+            return np.asarray(x, dtype=np.float32), np.asarray(y, dtype=np.float32)
+        else:
             raise StopIteration()
-        ofname = fname = self.files[self.f]
 
-        self.i += 1
 
-        while (self.f < len(self.files) and self.i >= len(self.raw[fname])):
-            # self.progress.update(self.f)
-            self.f += 1
-            self.i = 0
-            fname = self.files[self.f]
+class JsonIterator(object):
+    def __init__(self, filename, size=(101, 101)):
+        self.size = size
+        if isinstance(filename, str):
+            self.raw = json.load(open(filename))
+        elif isinstance(filename, file):
+            self.raw = json.load(filename)
+        elif isinstance(filename, dict):
+            self.raw = filename
+        else:
+            raise AssertionError('JSON Iterator :: ' + type(filename).__name__ + ' is not iterable.')
+        self.files = self.raw.keys()
+        self.cur_file = 0
+        self.index = 0
+        self.image = np.asarray(Image.open(self.files[0]), dtype=np.float32).transpose(2, 0, 1)
 
-        if (self.f >= len(self.files)):
+    def __iter__(self):
+        self.index = 0
+        self.cur_file = 0
+        return self
+
+    def next(self):
+        if self.cur_file >= len(self.files):
+            raise StopIteration()
+        old_filename = filename = self.files[self.cur_file]
+
+        self.index += 1
+
+        while self.cur_file < len(self.files) and self.index >= len(self.raw[filename]):
+            self.cur_file += 1
+            self.index = 0
+            filename = self.files[self.cur_file]
+
+        if self.cur_file >= len(self.files):
             raise StopIteration()
 
-        if ofname != fname:
-            self.image = np.asarray(Image.open(self.files[self.f]), dtype=np.float32).transpose(2, 0, 1)
+        if old_filename != filename:
+            self.image = np.asarray(Image.open(self.files[self.cur_file]), dtype=np.float32).transpose(2, 0, 1)
 
-        x, y, p = self.raw[fname][self.i]
+        x, y, p = self.raw[filename][self.index]
         return patch_at(self.image, x, y, self.size), p
+
 
 def patch_at(image, x, y, size=(101, 101)):
     x -= size[0] / 2
@@ -235,7 +251,7 @@ def patch_at(image, x, y, size=(101, 101)):
 
 def prepare_negative(path):
     sampler = RandomSampler(path=path)
-    json.dump(sampler.batch(65000).sample(), open(os.path.join(path, 'negatives.json'), 'w'))
+    json.dump(sampler.set_batch_size(65000).sample(), open(os.path.join(path, 'negatives.json'), 'w'))
 
 
 def prepare_positive(path):
