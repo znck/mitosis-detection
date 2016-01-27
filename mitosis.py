@@ -87,14 +87,13 @@ def _task_train_filter(arguments):
     dataset = RandomSampler(path, verbose=arguments.verbose)
 
     positive, n_positive = dataset.positive()
-    sample, n_sample = dataset.sample(n_positive)
 
     if arguments.verbose:
         print TT.INFO + "> Compiling model...", TT.END
     model = model_base()
 
     if os.path.exists(load_path):
-        print TT.INFO, "Loading model from %s" % load_path, TT.END
+        print TT.SUCCESS + "> Loading model from %s" % load_path, TT.END
         model.load_weights(load_path)
     n_epoch = arguments.epoch
 
@@ -109,13 +108,13 @@ def _task_train_filter(arguments):
         val_split = .0
 
     for epoch in xrange(n_epoch):
-        print TT.SUCCESS + "> Epoch %d or %d" % (epoch + 1, n_epoch), TT.END
+        print TT.SUCCESS + "> Epoch %d of %d" % (epoch + 1, n_epoch), TT.END
+        sample, n_sample = dataset.sample(n_positive)
         for X_train, Y_train in BatchGenerator(JsonIterator(positive), n_positive, JsonIterator(sample), n_sample,
                                                arguments.batch):
-            model.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True, validation_split=val_split)
-        sample, n_sample = dataset.sample(n_positive)
-
-    model.save_weights(load_path)
+            model.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
+                      validation_split=val_split)
+        model.save_weights(load_path, True)
 
 
 def _parse_args():
