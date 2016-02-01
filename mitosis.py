@@ -2,16 +2,117 @@
 import glob
 import os
 import traceback
+from random import randint
+
 import argparse
 import signal
 
+import time
+
+from keras.callbacks import Callback
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.layers.core import Dense, Flatten, Activation
 from keras.models import Sequential
+from keras.optimizers import SGD
+from keras.preprocessing.image import array_to_img
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid import AxesGrid
 
 from prepare import JsonIterator, RandomSampler, BatchGenerator, TT
 
 import theano
+
+
+class VisHistory(Callback):
+    def __init__(self, layer=0):
+        super(VisHistory, self).__init__()
+        self.nb_batches = 0
+        self.epoch_loss = 0
+        self.epoch_acc = 0
+        self.train_length = 0
+        self.val_split = 1.
+        self.layer = layer
+        self.losses = {
+            'val_acc': [],
+            'val_loss': [],
+            'loss': [],
+            'acc': []
+        }
+        self.img_to_visualize = 0
+        # plt.figure(0)
+        self.f, self.axarr = plt.subplots(2, 2, sharex=True)
+        self.axarr[0][0].set_title('Loss')
+        self.axarr[1][0].set_title('Accuracy')
+        self.axarr[0][1].set_title('Test image')
+        self.axarr[1][1].set_title('Convolutions')
+        self.test_image = None
+
+    def show_convolutions(self):
+        convout1_f = theano.function([self.model.get_input(train=False)],
+                                     self.model.layers[self.layer].get_output(train=False))
+        convolutions = convout1_f(self.model.training_data[0][self.img_to_visualize: self.img_to_visualize + 1])
+        nb_filters = convolutions[0].shape[0]
+        from math import sqrt, ceil
+        width = int(ceil(sqrt(nb_filters)))
+        # plt.figure()
+        grid = AxesGrid(self.f, 224,
+                        nrows_ncols=(width, width),
+                        axes_pad=0.05,
+                        label_mode="1",
+                        )
+
+        grid.axes_llc.set_xticks([])
+        grid.axes_llc.set_yticks([])
+        for i, convolution in enumerate(convolutions[0]):
+            grid[i].imshow(convolution)
+
+    def _set_params(self, params):
+        super(VisHistory, self)._set_params(params)
+        self.train_length = int(params.get('nb_sample'))
+        self.nb_batches = int(self.train_length / int(params.get('batch_size')))
+
+    def on_train_begin(self, logs=None):
+        self.img_to_visualize = randint(0, self.train_length - 1)
+        self.test_image = array_to_img(self.model.training_data[0][self.img_to_visualize])
+        image1 = self.test_image
+        # plt.figure(0)
+        self.axarr[0][1].imshow(image1)
+        plt.ion()
+        plt.show()
+
+    def on_train_end(self, logs=None):
+        plt.ioff()
+        # pass
+
+    def on_epoch_begin(self, epoch, logs=None):
+        # self.epoch_loss = 0
+        # self.epoch_acc = 0
+        pass
+
+    def on_batch_end(self, batch, logs=None):
+        if logs is None:
+            logs = dict()
+        self.epoch_loss += float(logs.get('loss'))
+        self.epoch_acc += float(logs.get('acc'))
+
+    def on_epoch_end(self, epoch, logs):
+        self.epoch_loss = self.epoch_loss / float(self.train_length) * float(self.nb_batches)
+        self.epoch_acc = self.epoch_acc / float(self.train_length) * float(self.nb_batches)
+        self.losses['val_acc'].append(logs['val_acc'])
+        self.losses['val_loss'].append(logs['val_loss'])
+        self.losses['loss'].append(self.epoch_loss)
+        self.losses['acc'].append(self.epoch_acc)
+        self.show_convolutions()
+        # plt.figure(0)
+        vl, = self.axarr[0][0].plot(self.losses['val_loss'], label='val_loss', color='r', linewidth=2.0)
+        ll, = self.axarr[0][0].plot(self.losses['loss'], label='loss', color='b')
+        va, = self.axarr[1][0].plot(self.losses['val_acc'], label='val_acc', color='r', linewidth=2.0)
+        aa, = self.axarr[1][0].plot(self.losses['acc'], label='acc', color='b')
+        self.axarr[0][0].legend(handles=[vl, ll], loc=1)
+        self.axarr[1][0].legend(handles=[va, aa], loc=4)
+        plt.pause(0.001)
+        plt.draw()
 
 
 def model1():
@@ -54,14 +155,16 @@ def model2():
 
 def model_base():
     nn = Sequential()
-    nn.add(Convolution2D(10, 3, 3, input_shape=(3, 101, 101)))
+    nn.add(Convolution2D(16, 4, 4, input_shape=(3, 101, 101)))
     nn.add(Activation('relu'))
-    nn.add(Convolution2D(10, 3, 3))
+    nn.add(Convolution2D(16, 4, 4))
+    nn.add(Activation('relu'))
+    nn.add(Convolution2D(16, 3, 3))
     nn.add(Activation('relu'))
     nn.add(Flatten())
     nn.add(Dense(100))
     nn.add(Dense(1))
-    nn.compile(loss='binary_crossentropy', optimizer='sgd')
+    nn.compile(loss='binary_crossentropy', optimizer=SGD(lr=0.03, decay=.01, momentum=.9, nesterov=True))
 
     return nn
 
@@ -97,24 +200,32 @@ def _task_train_filter(arguments):
         model.load_weights(load_path)
     n_epoch = arguments.epoch
 
-    def save_weights():
-        model.save_weights(load_path)
+    def save_weights(_1, _2):
+        dying_path = load_path + '.dying.npy'
+        print TT.DANGER + 'Program Terminated. Saving progressing in %s' % dying_path
+        model.save_weights(dying_path, True)
         exit(0)
 
     signal.signal(signal.SIGINT, save_weights)
 
-    val_split = .3
+    val_split = .2
     if not arguments.validation:
         val_split = .0
 
+    train_start = time.time()
     for epoch in xrange(n_epoch):
-        print TT.SUCCESS + "> Epoch %d of %d" % (epoch + 1, n_epoch), TT.END
+        epoch_start = time.time()
+        print TT.INFO + "> Epoch %d of %d" % (epoch + 1, n_epoch), TT.END
         sample, n_sample = dataset.sample(n_positive)
-        for X_train, Y_train in BatchGenerator(JsonIterator(positive), n_positive, JsonIterator(sample), n_sample,
-                                               arguments.batch):
+        batch = BatchGenerator(JsonIterator(positive), n_positive, JsonIterator(sample), n_sample, arguments.batch)
+        vis = VisHistory(5)
+        for X_train, Y_train in batch:
             model.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
-                      validation_split=val_split)
+                      validation_split=val_split, show_accuracy=True, callbacks=[vis])
         model.save_weights(load_path, True)
+        print TT.SUCCESS + "> Epoch %d of %d took %.2f seconds." % (
+            epoch + 1, n_epoch, time.time() - epoch_start), TT.END
+    print TT.SUCCESS + "> Training finished. Time take: %.2f seconds." % (time.time() - train_start), TT.END
 
 
 def _parse_args():
