@@ -17,6 +17,7 @@ from keras.optimizers import SGD
 from keras.preprocessing.image import array_to_img
 
 import matplotlib.pyplot as plt
+from matplotlib import cm
 from mpl_toolkits.axes_grid import AxesGrid
 
 from prepare import JsonIterator, RandomSampler, BatchGenerator, TT
@@ -58,6 +59,12 @@ class VisHistory(Callback):
                 if i >= len(self.layer):
                     break
                 self.visualize_layer(self.f, self.layer[i], pos[i])
+            layer = len(self.model.layers) - 1
+        convout1_f = theano.function([self.model.get_input(train=False)],
+                                     self.model.layers[layer].get_output(train=False))
+        output = convout1_f(self.model.training_data[0][self.img_to_visualize: self.img_to_visualize + 1])
+        print output.shape
+        self.axarr[1][2].set_title('Convolutions Layer 3 (P = %f)' % output[0][0])
 
     def visualize_layer(self, figure, layer, pos=224):
         convout1_f = theano.function([self.model.get_input(train=False)],
@@ -74,7 +81,7 @@ class VisHistory(Callback):
         grid.axes_llc.set_xticks([])
         grid.axes_llc.set_yticks([])
         for i, convolution in enumerate(convolutions[0]):
-            grid[i].imshow(convolution)
+            grid[i].imshow(convolution, cmap=cm.Greys_r)
             plt.draw()
 
     def _set_params(self, params):
@@ -83,8 +90,9 @@ class VisHistory(Callback):
         self.nb_batches = int(self.train_length / int(params.get('batch_size')))
 
     def on_train_begin(self, logs=None):
-        self.img_to_visualize = randint(0, self.train_length - 1)
-        self.test_image = array_to_img(self.model.training_data[0][self.img_to_visualize])
+        # self.img_to_visualize = randint(0, self.train_length - 1)
+        if self.test_image is None:
+            self.test_image = array_to_img(self.model.training_data[0][self.img_to_visualize])
         image1 = self.test_image
         # plt.figure(1)
         self.axarr[0][1].imshow(image1)
@@ -121,8 +129,8 @@ class VisHistory(Callback):
         ll, = self.axarr[0][0].plot(self.losses['loss'], label='loss', color='b')
         va, = self.axarr[1][0].plot(self.losses['val_acc'], label='val_acc', color='r', linewidth=2.0)
         aa, = self.axarr[1][0].plot(self.losses['acc'], label='acc', color='b')
-        self.axarr[0][0].legend(handles=[vl, ll], loc=1)
-        self.axarr[1][0].legend(handles=[va, aa], loc=4)
+        # self.axarr[0][0].legend(handles=[vl, ll], loc=1)
+        # self.axarr[1][0].legend(handles=[va, aa], loc=4)
         plt.pause(0.001)
         plt.draw()
 
@@ -167,16 +175,18 @@ def model2():
 
 def model_base():
     nn = Sequential()
-    nn.add(Convolution2D(16, 4, 4, input_shape=(3, 101, 101)))
-    nn.add(Activation('tanh'))
-    nn.add(Convolution2D(16, 4, 4))
+    nn.add(Convolution2D(8, 4, 4, input_shape=(3, 101, 101)))
     nn.add(Activation('tanh'))
     nn.add(Convolution2D(16, 3, 3))
     nn.add(Activation('tanh'))
+    nn.add(Convolution2D(16, 2, 2))
+    nn.add(Activation('tanh'))
     nn.add(Flatten())
+    nn.add(Dense(200))
     nn.add(Dense(100))
-    nn.add(Dense(1))
-    nn.compile(loss='binary_crossentropy', optimizer=SGD(lr=0.03, decay=.01, momentum=.9, nesterov=True))
+    nn.add(Dense(2))
+    nn.add(Activation('softmax'))
+    nn.compile(loss='binary_crossentropy', optimizer='rmsprop', class_mode='binary')
 
     return nn
 
@@ -225,15 +235,15 @@ def _task_train_filter(arguments):
         val_split = .0
 
     train_start = time.time()
+    callbacks = []
+    if arguments.visualize:
+        vis = VisHistory((1, 3, 5))
+        callbacks.append(vis)
     for epoch in xrange(n_epoch):
         epoch_start = time.time()
         print TT.INFO + "> Epoch %d of %d" % (epoch + 1, n_epoch), TT.END
         sample, n_sample = dataset.sample(n_positive)
         batch = BatchGenerator(JsonIterator(positive), n_positive, JsonIterator(sample), n_sample, arguments.batch)
-        callbacks = []
-        if arguments.visualize:
-            vis = VisHistory((1, 3, 5))
-            callbacks.append(vis)
         for X_train, Y_train in batch:
             model.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
                       validation_split=val_split, show_accuracy=True, callbacks=callbacks)

@@ -4,6 +4,7 @@ import os
 import random
 import warnings
 
+import math
 import numpy as np
 import sys
 import PIL.Image as Image
@@ -74,7 +75,7 @@ class RandomSampler(object):
             p = 0.0
             if filename in self._positives and (x * self._size[0] + y) in self._positives[filename]:
                 p = float(self._positives[filename][x * self._size[0] + y])
-            sampled[filename].append((x, y, p))
+            sampled[filename].append((x, y, (p, 1. - p)))
             count += 1
             if self.verbose:
                 i += 1
@@ -94,7 +95,7 @@ class RandomSampler(object):
 
         return expanded
 
-    def positive(self, expand=False):
+    def positive(self, expand=False, n_pix=float('inf')):
         files = read_all_files(self._path)
 
         if self.verbose:
@@ -124,8 +125,16 @@ class RandomSampler(object):
                         _x = x + i
                         _y = y + j
                         expanded[f][_x * 1539 + _y] = p
-                        normal[f].append((_x, _y, p))
+                        normal[f].append((_x, _y, (p, 1. - p)))
                         count += 1
+                        if count >= n_pix:
+                            break
+                    if count >= n_pix:
+                        break
+                if count >= n_pix:
+                    break
+            if count >= n_pix:
+                break
             index += 1
             if self.verbose is 1:
                 bar.update(index)
