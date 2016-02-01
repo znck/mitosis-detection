@@ -25,7 +25,7 @@ import theano
 
 
 class VisHistory(Callback):
-    def __init__(self, layer=0):
+    def __init__(self, layer=(0,)):
         super(VisHistory, self).__init__()
         self.nb_batches = 0
         self.epoch_loss = 0
@@ -40,32 +40,42 @@ class VisHistory(Callback):
             'acc': []
         }
         self.img_to_visualize = 0
-        # plt.figure(0)
-        self.f, self.axarr = plt.subplots(2, 2, sharex=True)
+        # plt.figure(1)
+        self.f, self.axarr = plt.subplots(2, 3, sharex=True)
         self.axarr[0][0].set_title('Loss')
         self.axarr[1][0].set_title('Accuracy')
         self.axarr[0][1].set_title('Test image')
-        self.axarr[1][1].set_title('Convolutions')
+        self.axarr[1][1].set_title('Convolutions Layer 1')
+        self.axarr[0][2].set_title('Convolutions Layer 2')
+        self.axarr[1][2].set_title('Convolutions Layer 3')
         self.test_image = None
+        self.e = 0
 
     def show_convolutions(self):
+        if len(self.layer):
+            pos = [235, 233, 236]
+            for i in range(0, 4):
+                if i >= len(self.layer):
+                    break
+                self.visualize_layer(self.f, self.layer[i], pos[i])
+
+    def visualize_layer(self, figure, layer, pos=224):
         convout1_f = theano.function([self.model.get_input(train=False)],
-                                     self.model.layers[self.layer].get_output(train=False))
+                                     self.model.layers[layer].get_output(train=False))
         convolutions = convout1_f(self.model.training_data[0][self.img_to_visualize: self.img_to_visualize + 1])
         nb_filters = convolutions[0].shape[0]
         from math import sqrt, ceil
         width = int(ceil(sqrt(nb_filters)))
-        # plt.figure()
-        grid = AxesGrid(self.f, 224,
+        grid = AxesGrid(figure, pos,
                         nrows_ncols=(width, width),
                         axes_pad=0.05,
                         label_mode="1",
                         )
-
         grid.axes_llc.set_xticks([])
         grid.axes_llc.set_yticks([])
         for i, convolution in enumerate(convolutions[0]):
             grid[i].imshow(convolution)
+            plt.draw()
 
     def _set_params(self, params):
         super(VisHistory, self)._set_params(params)
@@ -76,7 +86,7 @@ class VisHistory(Callback):
         self.img_to_visualize = randint(0, self.train_length - 1)
         self.test_image = array_to_img(self.model.training_data[0][self.img_to_visualize])
         image1 = self.test_image
-        # plt.figure(0)
+        # plt.figure(1)
         self.axarr[0][1].imshow(image1)
         plt.ion()
         plt.show()
@@ -103,8 +113,10 @@ class VisHistory(Callback):
         self.losses['val_loss'].append(logs['val_loss'])
         self.losses['loss'].append(self.epoch_loss)
         self.losses['acc'].append(self.epoch_acc)
+        # if self.e % 5 == 0:
         self.show_convolutions()
-        # plt.figure(0)
+        self.e += 1
+        # plt.figure(1)
         vl, = self.axarr[0][0].plot(self.losses['val_loss'], label='val_loss', color='r', linewidth=2.0)
         ll, = self.axarr[0][0].plot(self.losses['loss'], label='loss', color='b')
         va, = self.axarr[1][0].plot(self.losses['val_acc'], label='val_acc', color='r', linewidth=2.0)
@@ -156,11 +168,11 @@ def model2():
 def model_base():
     nn = Sequential()
     nn.add(Convolution2D(16, 4, 4, input_shape=(3, 101, 101)))
-    nn.add(Activation('relu'))
+    nn.add(Activation('tanh'))
     nn.add(Convolution2D(16, 4, 4))
-    nn.add(Activation('relu'))
+    nn.add(Activation('tanh'))
     nn.add(Convolution2D(16, 3, 3))
-    nn.add(Activation('relu'))
+    nn.add(Activation('tanh'))
     nn.add(Flatten())
     nn.add(Dense(100))
     nn.add(Dense(1))
@@ -202,7 +214,7 @@ def _task_train_filter(arguments):
 
     def save_weights(_1, _2):
         dying_path = load_path + '.dying.npy'
-        print TT.DANGER + 'Program Terminated. Saving progressing in %s' % dying_path
+        print TT.DANGER + 'Program Terminated. Saving progressing in %s' % dying_path, TT.END
         model.save_weights(dying_path, True)
         exit(0)
 
@@ -218,10 +230,13 @@ def _task_train_filter(arguments):
         print TT.INFO + "> Epoch %d of %d" % (epoch + 1, n_epoch), TT.END
         sample, n_sample = dataset.sample(n_positive)
         batch = BatchGenerator(JsonIterator(positive), n_positive, JsonIterator(sample), n_sample, arguments.batch)
-        vis = VisHistory(5)
+        callbacks = []
+        if arguments.visualize:
+            vis = VisHistory((1, 3, 5))
+            callbacks.append(vis)
         for X_train, Y_train in batch:
             model.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
-                      validation_split=val_split, show_accuracy=True, callbacks=[vis])
+                      validation_split=val_split, show_accuracy=True, callbacks=callbacks)
         model.save_weights(load_path, True)
         print TT.SUCCESS + "> Epoch %d of %d took %.2f seconds." % (
             epoch + 1, n_epoch, time.time() - epoch_start), TT.END
@@ -242,6 +257,9 @@ def _parse_args():
     stub.add_argument("--no-validate", action='store_false', help="Disable validation. (Default: Enabled)",
                       default=True,
                       dest='validation')
+    stub.add_argument("--visualize", action='store_true', help="Disable validation. (Default: Disabled)",
+                      default=False,
+                      dest='visualize')
     stub.add_argument("--no-optimisation", action='store_true',
                       help="Disable theano optimisations. (Default: Disabled)", default=False,
                       dest="disable_optimisation")
