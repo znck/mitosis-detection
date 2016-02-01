@@ -175,18 +175,18 @@ def model2():
 
 def model_base():
     nn = Sequential()
-    nn.add(Convolution2D(8, 4, 4, input_shape=(3, 101, 101)))
+    nn.add(Convolution2D(4, 4, 4, input_shape=(3, 101, 101)))
     nn.add(Activation('tanh'))
-    nn.add(Convolution2D(16, 3, 3))
+    nn.add(Convolution2D(8, 3, 3))
     nn.add(Activation('tanh'))
-    nn.add(Convolution2D(16, 2, 2))
+    nn.add(Convolution2D(12, 2, 2))
     nn.add(Activation('tanh'))
     nn.add(Flatten())
     nn.add(Dense(200))
     nn.add(Dense(100))
     nn.add(Dense(2))
     nn.add(Activation('softmax'))
-    nn.compile(loss='binary_crossentropy', optimizer='rmsprop', class_mode='binary')
+    nn.compile(loss='binary_crossentropy', optimizer=SGD(lr=0.0001), class_mode='binary')
 
     return nn
 
