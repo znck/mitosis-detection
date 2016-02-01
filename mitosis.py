@@ -186,7 +186,7 @@ def model_base():
     nn.add(Dense(100))
     nn.add(Dense(2))
     nn.add(Activation('softmax'))
-    nn.compile(loss='binary_crossentropy', optimizer=SGD(lr=0.0001), class_mode='binary')
+    nn.compile(loss='binary_crossentropy', optimizer=SGD(lr=0.001), class_mode='binary')
 
     return nn
 
