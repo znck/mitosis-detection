@@ -93,6 +93,7 @@ class VisHistory(Callback):
         # self.img_to_visualize = randint(0, self.train_length - 1)
         if self.test_image is None:
             self.test_image = array_to_img(self.model.training_data[0][self.img_to_visualize])
+            self.axarr[0][1].set_title('Test image %f' % self.model.training_data[1][0][0])
         image1 = self.test_image
         # plt.figure(1)
         self.axarr[0][1].imshow(image1)
@@ -129,8 +130,8 @@ class VisHistory(Callback):
         ll, = self.axarr[0][0].plot(self.losses['loss'], label='loss', color='b')
         va, = self.axarr[1][0].plot(self.losses['val_acc'], label='val_acc', color='r', linewidth=2.0)
         aa, = self.axarr[1][0].plot(self.losses['acc'], label='acc', color='b')
-        # self.axarr[0][0].legend(handles=[vl, ll], loc=1)
-        # self.axarr[1][0].legend(handles=[va, aa], loc=4)
+        self.axarr[0][0].legend(handles=[vl, ll], loc=1)
+        self.axarr[1][0].legend(handles=[va, aa], loc=4)
         plt.pause(0.001)
         plt.draw()
 
@@ -186,7 +187,7 @@ def model_base():
     nn.add(Dense(100))
     nn.add(Dense(2))
     nn.add(Activation('softmax'))
-    nn.compile(loss='binary_crossentropy', optimizer=SGD(lr=0.0001), class_mode='binary')
+    nn.compile(loss='binary_crossentropy', optimizer=SGD(lr=0.00003), class_mode='binary')
 
     return nn
 
