@@ -26,8 +26,8 @@ def _task_train_filter(arguments):
     # 3. Compile model
     if arguments.verbose:
         TT.info("> Compiling model...")
-    from mitosis import model_base
-    model = model_base()
+    from mitosis import model1
+    model = model1()
 
     # 4. Load old weights.
     load_path = os.path.join(path, 'weights.npy')
