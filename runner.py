@@ -98,14 +98,14 @@ def _task_train(arguments):
     positive, n_positive = dataset.positive()
 
     if arguments.verbose:
-        print TT.INFO + "> Compiling model...", TT.END
+        print TT.info("> Compiling model...")
     from mitosis import model_base, model_1, model_2
     model = model_base()
     model1 = model_1()
     model2 = model_2()
 
     if os.path.exists(load_path):
-        print TT.SUCCESS + "> Loading model from %s" % load_path, TT.END
+        print TT.success("> Loading model from %s" % load_path)
         model.load_weights(load_path)
     n_epoch = arguments.epoch
 
@@ -114,7 +114,7 @@ def _task_train(arguments):
         dying_path1 = load_path1 + '.dying.npy'
         dying_path2 = load_path2 + '.dying.npy'
 
-        print TT.DANGER + 'Program Terminated. Saving progressing in %s' % dying_path, TT.END
+        print TT.danger('Program Terminated. Saving progressing in %s' % dying_path)
         model.save_weights(dying_path, True)
         model1.save_weights(dying_path1, True)
         model2.save_weights(dying_path2, True)
@@ -133,7 +133,7 @@ def _task_train(arguments):
         callbacks.append(vis)
     for epoch in xrange(n_epoch):
         epoch_start = time.time()
-        print TT.INFO + "> Epoch %d of %d" % (epoch + 1, n_epoch), TT.END
+        print TT.info("> Epoch %d of %d" % (epoch + 1, n_epoch))
         sample, n_sample = dataset.sample(n_positive)
         batch = BatchGenerator(JsonIterator(positive), n_positive, JsonIterator(sample), n_sample, arguments.batch)
         for X_train, Y_train in batch:
@@ -150,9 +150,9 @@ def _task_train(arguments):
         model.save_weights(load_path, True)
         model1.save_weights(load_path1, True)
         model2.save_weights(load_path2, True)
-        print TT.SUCCESS + "> Epoch %d of %d took %.2f seconds." % (
-            epoch + 1, n_epoch, time.time() - epoch_start), TT.END
-    print TT.SUCCESS + "> Training finished. Time take: %.2f seconds." % (time.time() - train_start), TT.END
+        print TT.success("> Epoch %d of %d took %.2f seconds." % (
+            epoch + 1, n_epoch, time.time() - epoch_start))
+    print TT.success("> Training finished. Time take: %.2f seconds." % (time.time() - train_start))
 
 
 def _parse_args():
