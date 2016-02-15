@@ -1,6 +1,5 @@
 from keras.callbacks import Callback
 
-
 class VisHistory(Callback):
     def __init__(self, layer=(0,)):
         super(VisHistory, self).__init__()

@@ -1,5 +1,4 @@
-#! /usr/bin/env python
-
+#!/usr/bin/env python
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.layers.core import Dense, Flatten, Activation
 from keras.models import Sequential
@@ -21,7 +20,7 @@ def model1():
     dnn.add(Flatten())
     dnn.add(Dense(100))
     dnn.add(Dense(2))
-    dnn.compile(loss='binary_crossentropy', optimizer='sgd')
+    dnn.compile(loss='binary_crossentropy', optimizer='rmsprop')
 
     return dnn
 
@@ -47,17 +46,17 @@ def model2():
 def model_base():
     nn = Sequential()
     nn.add(Convolution2D(4, 4, 4, input_shape=(3, 101, 101)))
-    nn.add(Activation('tanh'))
+    nn.add(MaxPooling2D())
     nn.add(Convolution2D(8, 3, 3))
-    nn.add(Activation('tanh'))
+    nn.add(MaxPooling2D())
     nn.add(Convolution2D(12, 2, 2))
-    nn.add(Activation('tanh'))
+    nn.add(MaxPooling2D())
     nn.add(Flatten())
     nn.add(Dense(200))
     nn.add(Dense(100))
     nn.add(Dense(2))
     nn.add(Activation('softmax'))
-    nn.compile(loss='binary_crossentropy', optimizer=SGD(lr=0.00003), class_mode='binary')
+    nn.compile(loss='binary_crossentropy', optimizer=SGD(), class_mode='binary')
 
     return nn
 

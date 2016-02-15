@@ -12,28 +12,32 @@ from helpers import JsonIterator, RandomSampler, TT, DatasetGenerator, BatchGene
 
 def _task_train_filter(arguments):
     TT.imp("> Training non competent pixel filter")
+
+    # 1. Get data source.
     path = arguments.path
     assert os.path.exists(path), path + " does not exists"
     path = os.path.abspath(path)
     assert len(glob.glob(os.path.join(path, '*/mitosis'))), "No valid mitosis dataset provided."
 
-    # Init Random Sampler
+    # 2. Get all positive data.
     dataset = RandomSampler(path, verbose=arguments.verbose)
     positive, n_positive = dataset.positive()
 
+    # 3. Compile model
     if arguments.verbose:
         TT.info("> Compiling model...")
     from mitosis import model_base
     model = model_base()
 
+    # 4. Load old weights.
     load_path = os.path.join(path, 'weights.npy')
     if arguments.model:
         load_path = os.path.abspath(arguments.model)
     if os.path.exists(load_path):
         TT.success("> Loading model from %s" % load_path)
         model.load_weights(load_path)
-    n_epoch = arguments.epoch
 
+    # 5. Handle emergency exiting.
     def save_weights(_1, _2):
         dying_path = load_path + '.dying.npy'
         TT.danger('\r\nProgram Terminated. Saving progressing in %s' % dying_path)
@@ -43,23 +47,28 @@ def _task_train_filter(arguments):
 
     signal.signal(signal.SIGINT, save_weights)
 
+    # 6. Get run configuration
+    n_epoch = arguments.epoch
     val_split = .1
     if not arguments.validation:
         val_split = .0
 
+    # 7. Start training epoch
     train_start = time.time()
     callbacks = []
-    if arguments.visualize:
-        vis = VisHistory((1, 3, 5))
-        callbacks.append(vis)
     for epoch in xrange(n_epoch):
         epoch_start = time.time()
+        # 7.1. Get a randomly sampled batch.
         sample, n_sample = dataset.sample(n_positive)
-        TT.info("> Training on sample dataset %d of %d" % (epoch + 1, n_epoch))
+        if arguments.verbose:
+            TT.info("> Training on sample dataset %d of %d" % (epoch + 1, n_epoch))
+        # 7.2. Create mini batches that fit in RAM.
         batches = BatchGenerator(JsonIterator(positive), n_positive, JsonIterator(sample), n_sample, arguments.batch)
+        # 7.3. Train on each batch.
         for (x, y) in batches:
             model.fit(x, y, batch_size=arguments.mini_batch, nb_epoch=n_epoch, validation_split=val_split,
                       show_accuracy=True, callbacks=callbacks)
+        # 7.4. Save weights after each epoch.
         model.save_weights(load_path, True)
         TT.success(
             "> Finished sample dataset %d of %d took %.2f minutes." % (
