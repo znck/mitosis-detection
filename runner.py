@@ -70,7 +70,7 @@ def _task_train_filter(arguments):
         # 7.3. Train on each batch.
         for (x, y) in batches:
             model.fit(x, y, batch_size=arguments.mini_batch, nb_epoch=1, validation_split=val_split,
-                      show_accuracy=True, callbacks=callbacks)
+                      callbacks=callbacks)
         # 7.4. Save weights after each epoch.
         model.save_weights(load_path, True)
         TT.success(
@@ -143,9 +143,9 @@ def _task_train(arguments):
                 X_train[i] = np.dot(X_train[i], outputs[i])
 
             model1.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
-                       validation_split=val_split, show_accuracy=True, callbacks=callbacks)
+                       validation_split=val_split, callbacks=callbacks)
             model2.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
-                       validation_split=val_split, show_accuracy=True, callbacks=callbacks)
+                       validation_split=val_split, callbacks=callbacks)
 
         model.save_weights(load_path, True)
         model1.save_weights(load_path1, True)
