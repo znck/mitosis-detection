@@ -26,7 +26,7 @@ def model_1():
     dnn.add(Dense(100))
     dnn.add(Dense(2))
     dnn.add(Activation('softmax'))
-    dnn.compile(loss='binary_crossentropy', optimizer='rmsprop')
+    dnn.compile(loss='binary_crossentropy', optimizer='r')
 
     return dnn
 
@@ -48,7 +48,7 @@ def model_2():
     dnn.add(Flatten())
     dnn.add(Dense(100))
     dnn.add(Dense(2))
-    dnn.compile(loss='binary_crossentropy', optimizer='rmsprop')
+    dnn.compile(loss='binary_crossentropy', optimizer='sgd')
 
     return dnn
 
@@ -68,7 +68,7 @@ def model_base():
     nn.add(Dense(100))
     nn.add(Dense(2))
     nn.add(Activation('softmax'))
-    nn.compile(loss='binary_crossentropy', optimizer='rmsprop')
+    nn.compile(loss='binary_crossentropy', optimizer=SGD(lr=.0001), class_mode='binary')
 
     return nn
 
