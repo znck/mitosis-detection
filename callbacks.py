@@ -1,5 +1,6 @@
 from keras.callbacks import Callback
 
+
 class VisHistory(Callback):
     def __init__(self, layer=(0,)):
         super(VisHistory, self).__init__()
@@ -69,10 +70,10 @@ class VisHistory(Callback):
         if self.test_image is None:
             self.test_image = array_to_img(self.model.training_data[0][self.img_to_visualize])
             # self.axarr[0][1].set_title('Test image %f' % self.model.training_data[1][0][0])
-        # image1 = self.test_image
-        # self.axarr[0][1].imshow(image1)
-        # plt.ion()
-        # plt.show()
+            # image1 = self.test_image
+            # self.axarr[0][1].imshow(image1)
+            # plt.ion()
+            # plt.show()
 
     def on_train_end(self, logs=None):
         # plt.ioff()
