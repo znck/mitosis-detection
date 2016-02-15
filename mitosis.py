@@ -48,7 +48,7 @@ def model_2():
     dnn.add(Flatten())
     dnn.add(Dense(100))
     dnn.add(Dense(2))
-    dnn.compile(loss='binary_crossentropy', optimizer='sgd')
+    dnn.compile(loss='binary_crossentropy', optimizer='rmsprop')
 
     return dnn
 
