@@ -5,7 +5,7 @@ from keras.models import Sequential
 from keras.optimizers import SGD
 
 
-def model1():
+def model_1():
     dnn = Sequential()
     dnn.add(Convolution2D(16, 2, 2, input_shape=(3, 101, 101)))
     dnn.add(MaxPooling2D())
@@ -26,12 +26,12 @@ def model1():
     dnn.add(Dense(100))
     dnn.add(Dense(2))
     dnn.add(Activation('softmax'))
-    dnn.compile(loss='binary_crossentropy', optimizer='rmsprop')
+    dnn.compile(loss='binary_crossentropy', optimizer=SGD(lr=.001))
 
     return dnn
 
 
-def model2():
+def model_2():
     dnn = Sequential()
     dnn.add(Convolution2D(16, 4, 4, input_shape=(3, 101, 101)))
     dnn.add(MaxPooling2D())
@@ -56,16 +56,15 @@ def model2():
 def model_base():
     nn = Sequential()
     nn.add(Convolution2D(4, 4, 4, input_shape=(3, 101, 101)))
-    nn.add(MaxPooling2D())
+    # nn.add(MaxPooling2D())
     nn.add(Activation('relu'))
     nn.add(Convolution2D(8, 3, 3))
-    nn.add(MaxPooling2D())
+    # nn.add(MaxPooling2D())
     nn.add(Activation('relu'))
     nn.add(Convolution2D(12, 2, 2))
-    nn.add(MaxPooling2D())
+    # nn.add(MaxPooling2D())
     nn.add(Activation('relu'))
     nn.add(Flatten())
-    nn.add(Dense(200))
     nn.add(Dense(100))
     nn.add(Dense(2))
     nn.add(Activation('softmax'))

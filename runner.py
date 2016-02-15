@@ -6,6 +6,9 @@ import signal
 import time
 import traceback
 
+import numpy as np
+import theano
+
 from callbacks import VisHistory
 from helpers import JsonIterator, RandomSampler, TT, DatasetGenerator, BatchGenerator
 
@@ -26,8 +29,8 @@ def _task_train_filter(arguments):
     # 3. Compile model
     if arguments.verbose:
         TT.info("> Compiling model...")
-    from mitosis import model1
-    model = model1()
+    from mitosis import model_base
+    model = model_base()
 
     # 4. Load old weights.
     load_path = os.path.join(path, 'weights.npy')
@@ -74,6 +77,82 @@ def _task_train_filter(arguments):
             "> Finished sample dataset %d of %d took %.2f minutes." % (
                 epoch + 1, n_epoch, (time.time() - epoch_start) / 60.))
     TT.success("> Training finished. Time take: %.2f hours." % ((time.time() - train_start) / 3600.))
+
+
+def _task_train(arguments):
+    path = arguments.path
+    assert os.path.exists(path), path + " does not exists"
+    path = os.path.abspath(path)
+
+    assert len(glob.glob(os.path.join(path, '*/mitosis'))), "No valid mitosis dataset provided."
+
+    load_path = os.path.join(path, 'weights.npy')
+    load_path1 = os.path.join(path, 'weights1.npy')
+    load_path2 = os.path.join(path, 'weights2.npy')
+    if arguments.model:
+        load_path = os.path.abspath(arguments.model)  # What's this
+
+    # Init Random Sampler
+    dataset = RandomSampler(path, verbose=arguments.verbose)
+
+    positive, n_positive = dataset.positive()
+
+    if arguments.verbose:
+        print TT.INFO + "> Compiling model...", TT.END
+    from mitosis import model_base, model_1, model_2
+    model = model_base()
+    model1 = model_1()
+    model2 = model_2()
+
+    if os.path.exists(load_path):
+        print TT.SUCCESS + "> Loading model from %s" % load_path, TT.END
+        model.load_weights(load_path)
+    n_epoch = arguments.epoch
+
+    def save_weights(_1, _2):
+        dying_path = load_path + '.dying.npy'
+        dying_path1 = load_path1 + '.dying.npy'
+        dying_path2 = load_path2 + '.dying.npy'
+
+        print TT.DANGER + 'Program Terminated. Saving progressing in %s' % dying_path, TT.END
+        model.save_weights(dying_path, True)
+        model1.save_weights(dying_path1, True)
+        model2.save_weights(dying_path2, True)
+        exit(0)
+
+    signal.signal(signal.SIGINT, save_weights)
+
+    val_split = .2
+    if not arguments.validation:
+        val_split = .0
+
+    train_start = time.time()
+    callbacks = []
+    if arguments.visualize:
+        vis = VisHistory((1, 3, 5))
+        callbacks.append(vis)
+    for epoch in xrange(n_epoch):
+        epoch_start = time.time()
+        print TT.INFO + "> Epoch %d of %d" % (epoch + 1, n_epoch), TT.END
+        sample, n_sample = dataset.sample(n_positive)
+        batch = BatchGenerator(JsonIterator(positive), n_positive, JsonIterator(sample), n_sample, arguments.batch)
+        for X_train, Y_train in batch:
+            outputs = model.predict(X_train, Y_train, batch_size=arguments.mini_batch)
+            # Multiply each window with it's prediction and then pass it to the next layer
+            for i in range(len(outputs)):
+                X_train[i] = np.dot(X_train[i], outputs[i])
+
+            model1.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
+                       validation_split=val_split, show_accuracy=True, callbacks=callbacks)
+            model2.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
+                       validation_split=val_split, show_accuracy=True, callbacks=callbacks)
+
+        model.save_weights(load_path, True)
+        model1.save_weights(load_path1, True)
+        model2.save_weights(load_path2, True)
+        print TT.SUCCESS + "> Epoch %d of %d took %.2f seconds." % (
+            epoch + 1, n_epoch, time.time() - epoch_start), TT.END
+    print TT.SUCCESS + "> Training finished. Time take: %.2f seconds." % (time.time() - train_start), TT.END
 
 
 def _parse_args():
