@@ -260,20 +260,47 @@ class BatchGenerator(object):
 
             x = []
             y = []
+            data_x = None
+            data_y = None
             count = 0
             for patch, target in self.positive:
-                x.append(patch)
+                x.append(patch.ravel())
                 y.append(target)
                 count += 1
+                if len(x) == 1000:
+                    if data_x is None:
+                        data_x = np.asanyarray(x, dtype=np.float32)
+                        data_y = np.asanyarray(y, dtype=np.float32)
+                    else:
+                        data_x = np.concatenate((data_x, np.asanyarray(x, dtype=np.float32)))
+                        data_y = np.concatenate((data_y, np.asanyarray(y, dtype=np.float32)))
+                    x = []
+                    y = []
                 if count == self.batch_size / 2:
                     break
             for patch, target in self.sample:
-                x.append(patch)
+                x.append(patch.ravel())
                 y.append(target)
                 count += 1
+                if len(x) == 1000:
+                    if data_x is None:
+                        data_x = np.asarray(x, dtype=np.float32)
+                        data_y = np.asarray(y, dtype=np.float32)
+                    else:
+                        data_x = np.concatenate((data_x, np.asarray(x, dtype=np.float32)))
+                        data_y = np.concatenate((data_y, np.asarray(y, dtype=np.float32)))
+                    x = []
+                    y = []
                 if count == self.batch_size:
                     break
-            return np.asarray(x, dtype=np.float32), np.asarray(y, dtype=np.float32)
+            if len(x):
+                if data_x is None:
+                    data_x = np.asarray(x, dtype=np.float32)
+                    data_y = np.asarray(y, dtype=np.float32)
+                else:
+                    data_x = np.concatenate((data_x, np.asarray(x, dtype=np.float32)))
+                    data_y = np.concatenate((data_y, np.asarray(y, dtype=np.float32)))
+            return data_x.reshape((self.batch_size, 3, 101, 101)), data_y
         else:
             raise StopIteration()
 
@@ -317,7 +344,10 @@ class JsonIterator(object):
         self.files = self.raw.keys()
         self.cur_file = 0
         self.index = 0
-        self.image = cv2.imread(self.files[0]).transpose(2, 0, 1)
+        self.orig = cv2.imread(self.files[0])
+        self.image = cv2.copyMakeBorder(self.orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
+                                        right=self.size[0],
+                                        borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1)
 
     def __iter__(self):
         self.index = 0
@@ -330,7 +360,6 @@ class JsonIterator(object):
         old_filename = filename = self.files[self.cur_file]
 
         self.index += 1
-
         while self.cur_file < len(self.files) and self.index >= len(self.raw[filename]):
             self.cur_file += 1
             self.index = 0
@@ -340,16 +369,24 @@ class JsonIterator(object):
             raise StopIteration()
 
         if old_filename != filename:
-            self.image = cv2.imread(self.files[self.cur_file]).transpose(2, 0, 1)
+            self.orig = cv2.imread(self.files[self.cur_file])
+            self.image = cv2.copyMakeBorder(self.orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
+                                            right=self.size[0],
+                                            borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1)
 
         x, y, p = self.raw[filename][self.index]
+        if x < 0 or y < 0 or x > self.orig.shape[0] or y > self.orig.shape[1]:
+            return self.next()
         return patch_at(self.image, x, y, self.size), p
 
 
 def patch_at(image, x, y, size=(101, 101)):
-    x -= size[0] / 2
-    y -= size[1] / 2
-    return image[:, x:x + size[0], y:y + size[1]]
+    x_start = x + size[0] / 2
+    y_start = y + size[1] / 2
+    x_end = x_start + size[0]
+    y_end = y_start + size[1]
+    p = image[:, x_start:x_end, y_start:y_end]
+    return p
 
 
 def prepare_negative(path):

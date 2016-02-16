@@ -58,7 +58,6 @@ def _task_train_filter(arguments):
 
     # 7. Start training epoch
     train_start = time.time()
-    callbacks = []
     for epoch in xrange(n_epoch):
         epoch_start = time.time()
         # 7.1. Get a randomly sampled batch.
@@ -69,8 +68,7 @@ def _task_train_filter(arguments):
         batches = BatchGenerator(JsonIterator(positive), n_positive, JsonIterator(sample), n_sample, arguments.batch)
         # 7.3. Train on each batch.
         for (x, y) in batches:
-            model.fit(x, y, batch_size=arguments.mini_batch, nb_epoch=1, validation_split=val_split,
-                      callbacks=callbacks)
+            model.fit(x, y, batch_size=arguments.mini_batch, nb_epoch=1, validation_split=val_split)
         # 7.4. Save weights after each epoch.
         model.save_weights(load_path, True)
         TT.success(
