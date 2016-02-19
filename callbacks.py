@@ -7,4 +7,4 @@ class PrintGradients(Callback):
     def on_batch_end(self, batch, logs={}):
         for layer in self.model.layers:
             if isinstance(layer, Convolution2D):
-                print theano.pp(layer.W)
+                data = layer.W.get_value().flatten()
