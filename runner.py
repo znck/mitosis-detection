@@ -8,7 +8,7 @@ import traceback
 
 import numpy as np
 
-from callbacks import PrintGradients
+from callbacks import PrintGradients, VisualizeWeights, PlotLoss
 from helpers import JsonIterator, RandomSampler, TT, DatasetGenerator, BatchGenerator
 
 
@@ -24,6 +24,7 @@ def _task_train_filter(arguments):
     # 2. Get all positive data.
     dataset = RandomSampler(path, verbose=arguments.verbose)
     positive, n_positive = dataset.positive()
+    n_positive = min(n_positive, 10000000)
 
     # 3. Compile model
     if arguments.verbose:
@@ -56,7 +57,9 @@ def _task_train_filter(arguments):
     if not arguments.validation:
         val_split = .0
 
-    callbacks = [PrintGradients()]
+    callbacks = []
+    if arguments.visualize:
+        callbacks = [VisualizeWeights()]
 
     # 7. Start training epoch
     train_start = time.time()
@@ -70,7 +73,8 @@ def _task_train_filter(arguments):
         batches = BatchGenerator(JsonIterator(positive), n_positive, JsonIterator(sample), n_sample, arguments.batch)
         # 7.3. Train on each batch.
         for (x, y) in batches:
-            model.fit(x, y, batch_size=arguments.mini_batch, nb_epoch=1, validation_split=val_split, callbacks=callbacks)
+            model.fit(x, y, batch_size=arguments.mini_batch, nb_epoch=1, validation_split=val_split,
+                      callbacks=callbacks)
         # 7.4. Save weights after each epoch.
         model.save_weights(load_path, True)
         TT.success(

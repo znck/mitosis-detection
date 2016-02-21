@@ -347,7 +347,7 @@ class JsonIterator(object):
         self.orig = cv2.imread(self.files[0])
         self.image = cv2.copyMakeBorder(self.orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
                                         right=self.size[0],
-                                        borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1)
+                                        borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1) / 255.
 
     def __iter__(self):
         self.index = 0
@@ -372,7 +372,7 @@ class JsonIterator(object):
             self.orig = cv2.imread(self.files[self.cur_file])
             self.image = cv2.copyMakeBorder(self.orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
                                             right=self.size[0],
-                                            borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1)
+                                            borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1) / 255.
 
         x, y, p = self.raw[filename][self.index]
         if x < 0 or y < 0 or x > self.orig.shape[0] or y > self.orig.shape[1]:
