@@ -57,7 +57,7 @@ def model_base(lr=.001, rho=.9, epsilon=1.0e-6):
     nn = Sequential()
     nn.add(Convolution2D(4, 4, 4, input_shape=(3, 101, 101)))
     nn.add(MaxPooling2D())
-    nn.add(Convolution2D(8, 3, 3))
+    nn.add(Convolution2D(8, 4, 4))
     nn.add(MaxPooling2D())
     nn.add(Convolution2D(12, 2, 2))
     nn.add(MaxPooling2D())
