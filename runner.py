@@ -75,6 +75,7 @@ def _task_train_filter(arguments):
         for (x, y) in batches:
             model.fit(x, y, batch_size=arguments.mini_batch, nb_epoch=1, validation_split=val_split,
                       callbacks=callbacks)
+            time.sleep(0.0001)
         # 7.4. Save weights after each epoch.
         model.save_weights(load_path, True)
         TT.success(
