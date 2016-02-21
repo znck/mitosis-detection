@@ -65,7 +65,7 @@ def model_base(lr):
     nn.add(Dense(100))
     nn.add(Dense(2))
     nn.add(Activation('softmax'))
-    nn.compile(loss='binary_crossentropy', optimizer=RMSprop(lr=.0001))
+    nn.compile(loss='binary_crossentropy', optimizer=RMSprop(lr=lr))
 
     return nn
 
