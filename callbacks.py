@@ -23,7 +23,7 @@ class PlotLoss(Callback):
         if len(self.data) > 100:
             self.data.pop(0)
         plt.clf()
-        plt.xlim([0, 101])
+
         plt.plot(range(len(self.data)), self.data, '-ro')
         plt.draw()
         plt.pause(0.0001)
@@ -46,7 +46,9 @@ class VisualizeWeights(Callback):
     def on_epoch_begin(self, epoch, logs=None):
         i = 0
         n_plots = 0
-        this = []
+        map_name = 'gray'
+        if self.epoch % 2 == 1:
+            map_name = 'hot'
         self.epoch += 1
         if self.flat is None:
             for layer in self.model.layers:
@@ -66,12 +68,13 @@ class VisualizeWeights(Callback):
                 for j in xrange(n_filters):
                     im = data[j, :, :, :].flatten()
                     im = self.np2im(im)
-                    flat[i].imshow(im, cmap=plt.get_cmap('gray'), interpolation='none')
+                    flat[i].imshow(im, cmap=plt.get_cmap(map_name), interpolation='none')
                     i += 1
             elif isinstance(layer, Dense):
                 data = layer.W.get_value()
                 im = self.np2im(data)
-                flat[i].imshow(im, cmap=plt.get_cmap('gray'), interpolation='none')
+                flat[i].clear()
+                flat[i].imshow(im, cmap=plt.get_cmap(map_name), interpolation='none')
                 i += 1
         plt.setp([a.get_xticklabels() for a in flat], visible=False)
         plt.setp([a.get_yticklabels() for a in flat], visible=False)

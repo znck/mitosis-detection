@@ -59,7 +59,7 @@ def _task_train_filter(arguments):
 
     callbacks = []
     if arguments.visualize:
-        callbacks = [PlotLoss()]
+        callbacks = [VisualizeWeights()]
 
     # 7. Start training epoch
     train_start = time.time()
