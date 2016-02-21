@@ -31,7 +31,7 @@ def _task_train_filter(arguments):
         TT.info("> Compiling model...")
     from mitosis import model_base
     TT.info("> Learning Rate %f" % arguments.lr)
-    model = model_base(arguments.lr)
+    model = model_base(arguments.lr, arguments.rho, arguments.epsilon)
 
     # 4. Load old weights.
     load_path = os.path.join(path, 'weights.npy')
@@ -168,6 +168,8 @@ def _parse_args():
     stub.add_argument("--batch", type=int, help="Size of batch fits in memory. (Default: 1000)", default=1000)
     stub.add_argument("--mini-batch", type=int, help="Size of training batch. (Default: 50)", default=50)
     stub.add_argument("--lr", type=float, help="Learning Rate. (Default: .01)", default=.01)
+    stub.add_argument("--rho", type=float, help="RHO. (Default: .9)", default=.9)
+    stub.add_argument("--epsilon", type=float, help="RHO. (Default: 1e-6)", default=1.0e-6)
     stub.add_argument("-v", action="store_true", help="Increase verbosity. (Default: Disabled)", default=False,
                       dest='verbose')
     stub.add_argument("--model", type=str, help="Saved model weights. (Default: ${path}/weights.npy)")

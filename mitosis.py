@@ -53,7 +53,7 @@ def model_2():
     return dnn
 
 
-def model_base(lr):
+def model_base(lr=.001, rho=.9, epsilon=1.0e-6):
     nn = Sequential()
     nn.add(Convolution2D(4, 4, 4, input_shape=(3, 101, 101)))
     nn.add(MaxPooling2D())
@@ -65,7 +65,7 @@ def model_base(lr):
     nn.add(Dense(100))
     nn.add(Dense(2))
     nn.add(Activation('softmax'))
-    nn.compile(loss='binary_crossentropy', optimizer=RMSprop(lr=lr))
+    nn.compile(loss='binary_crossentropy', optimizer=RMSprop(lr=lr, rho=rho, epsilon=epsilon))
 
     return nn
 
