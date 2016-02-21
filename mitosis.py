@@ -2,7 +2,7 @@
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.layers.core import Dense, Flatten, Activation
 from keras.models import Sequential
-from keras.optimizers import SGD
+from keras.optimizers import SGD, RMSprop
 
 
 def model_1():
@@ -65,7 +65,7 @@ def model_base(lr):
     nn.add(Dense(100))
     nn.add(Dense(2))
     nn.add(Activation('softmax'))
-    nn.compile(loss='binary_crossentropy', optimizer='rmsprop')
+    nn.compile(loss='binary_crossentropy', optimizer=RMSprop(lr=.0001))
 
     return nn
 

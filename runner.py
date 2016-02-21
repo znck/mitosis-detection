@@ -59,7 +59,7 @@ def _task_train_filter(arguments):
 
     callbacks = []
     if arguments.visualize:
-        callbacks = [VisualizeWeights()]
+        callbacks = [PlotLoss()]
 
     # 7. Start training epoch
     train_start = time.time()
@@ -104,7 +104,7 @@ def _task_train(arguments):
     if arguments.verbose:
         print TT.info("> Compiling model...")
     from mitosis import model_base, model_1, model_2
-    model = model_base()
+    model = model_base(0)
     model1 = model_1()
     model2 = model_2()
 
@@ -132,9 +132,9 @@ def _task_train(arguments):
 
     train_start = time.time()
     callbacks = []
-    if arguments.visualize:
-        vis = VisHistory((1, 3, 5))
-        callbacks.append(vis)
+    # if arguments.visualize:
+    #     vis = VisHistory((1, 3, 5))
+    #     callbacks.append(vis)
     for epoch in xrange(n_epoch):
         epoch_start = time.time()
         print TT.info("> Epoch %d of %d" % (epoch + 1, n_epoch))
