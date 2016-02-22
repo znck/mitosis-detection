@@ -16,15 +16,23 @@ class PlotLoss(Callback):
         super(PlotLoss, self).__init__()
         plt.ion()
         plt.show()
+        self.loss = 0
         self.data = []
+        self.val = []
 
-    def on_batch_end(self, batch, logs={}):
-        self.data.append(logs['loss'])
+    def on_batch_end(self, batch, logs=None):
+        self.loss = logs['loss']
+
+    def on_epoch_end(self, batch, logs=None):
+        self.data.append(self.loss)
+        self.val.append(logs['val_loss'])
         if len(self.data) > 100:
             self.data.pop(0)
+            self.val.pop(0)
         plt.clf()
-
+        plt.xlim([0, 101])
         plt.plot(range(len(self.data)), self.data, '-ro')
+        plt.plot(range(len(self.val)), self.val, '-g^')
         plt.draw()
         plt.pause(0.0001)
 
