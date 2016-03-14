@@ -1,8 +1,9 @@
 #!/usr/bin/env python
+from keras.layers import BatchNormalization
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.layers.core import Dense, Flatten, Activation
 from keras.models import Sequential
-from keras.optimizers import SGD, RMSprop
+from keras.optimizers import SGD, RMSprop, Adamax
 from keras.layers.advanced_activations import LeakyReLU, PReLU
 from keras.initializations import get_fans
 import keras.backend as K
@@ -68,22 +69,23 @@ def model_2():
 
 def model_base(lr=.001, rho=.9, epsilon=1.0e-6):
     nn = Sequential()
-    nn.add(MyConvolution2D(4, 4, 4, input_shape=(3, 101, 101), init=custom_initialization))
+    nn.add(MyConvolution2D(16, 4, 4, input_shape=(3, 101, 101), init=custom_initialization))
     nn.add(LeakyReLU(alpha=.01))
     nn.add(MaxPooling2D())
-    nn.add(MyConvolution2D(8, 4, 4, init=custom_initialization))
+    nn.add(MyConvolution2D(16, 4, 4, init=custom_initialization))
     nn.add(LeakyReLU(alpha=.01))
     nn.add(MaxPooling2D())
-    nn.add(MyConvolution2D(12, 2, 2, init=custom_initialization))
+    nn.add(MyConvolution2D(16, 2, 2, init=custom_initialization))
     nn.add(LeakyReLU(alpha=.01))
     nn.add(MaxPooling2D())
+    nn.add(BatchNormalization())
     nn.add(Flatten())
     nn.add(Dense(100))
     nn.add(LeakyReLU(alpha=.01))
     nn.add(Dense(2))
     nn.add(LeakyReLU(alpha=.01))
     nn.add(Activation('softmax'))
-    nn.compile(loss='binary_crossentropy', optimizer=RMSprop(lr=lr, rho=rho, epsilon=epsilon))
+    nn.compile(loss='binary_crossentropy', optimizer=Adamax())
 
     return nn
 
