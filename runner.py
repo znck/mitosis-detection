@@ -30,7 +30,7 @@ def _task_train_filter(arguments):
     if arguments.verbose:
         TT.info("> Compiling model...")
     from mitosis import model_base
-    TT.info("> Learning Rate %f" % arguments.lr)
+    TT.info("> Learning Rate %e" % arguments.lr)
     model = model_base(arguments.lr, arguments.rho, arguments.epsilon)
 
     # 4. Load old weights.

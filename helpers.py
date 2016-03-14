@@ -305,31 +305,6 @@ class BatchGenerator(object):
             raise StopIteration()
 
 
-class ImageBatchGenerator(object):
-    def __init__(self, fp, patch=(101, 101)):
-        self.image = cv2.imread(fp)
-        size = self.image.size
-        self.i = 0
-        self.size = patch
-        self._eff_x = size[0] - patch[0] + 1
-        self._eff_y = size[1] - patch[1] + 1
-        self.n = self._eff_x * self._eff_y
-        self._pad_x = patch[0] / 2
-        self._pad_y = patch[1] / 2
-
-    def __iter__(self):
-        self.i = 0
-        return self
-
-    def next(self, batch):
-        if self.i < self.n:
-            x = (self.i / self._eff_x) + self._pad_x
-            y = (self.i % self._eff_y) + self._pad_y
-            patch = patch_at(self.image, x, y, self.size)
-        else:
-            raise StopIteration()
-
-
 class JsonIterator(object):
     def __init__(self, filename, size=(101, 101)):
         self.size = size
