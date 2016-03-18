@@ -69,13 +69,13 @@ def model_2():
 
 def model_base(lr=.001, rho=.9, epsilon=1.0e-6):
     nn = Sequential()
-    nn.add(MyConvolution2D(16, 4, 4, input_shape=(3, 101, 101), init='he_norm'))
+    nn.add(MyConvolution2D(16, 4, 4, input_shape=(3, 101, 101), init='he_normal'))
     nn.add(LeakyReLU(alpha=.01))
     nn.add(MaxPooling2D())
-    # nn.add(MyConvolution2D(16, 4, 4, init='he_norm'))
+    # nn.add(MyConvolution2D(16, 4, 4, init='he_normal'))
     # nn.add(LeakyReLU(alpha=.01))
     # nn.add(MaxPooling2D())
-    # nn.add(MyConvolution2D(16, 2, 2, init='he_norm'))
+    # nn.add(MyConvolution2D(16, 2, 2, init='he_normal'))
     # nn.add(LeakyReLU(alpha=.01))
     # nn.add(MaxPooling2D())
     # nn.add(BatchNormalization())
