@@ -269,11 +269,11 @@ class BatchGenerator(object):
                 count += 1
                 if len(x) == 1000:
                     if data_x is None:
-                        data_x = np.asanyarray(x, dtype=np.float32)
-                        data_y = np.asanyarray(y, dtype=np.float32)
+                        data_x = np.asanyarray(x, dtype=np.float64)
+                        data_y = np.asanyarray(y, dtype=np.float64)
                     else:
-                        data_x = np.concatenate((data_x, np.asanyarray(x, dtype=np.float32)))
-                        data_y = np.concatenate((data_y, np.asanyarray(y, dtype=np.float32)))
+                        data_x = np.concatenate((data_x, np.asanyarray(x, dtype=np.float64)))
+                        data_y = np.concatenate((data_y, np.asanyarray(y, dtype=np.float64)))
                     x = []
                     y = []
                 if count == self.batch_size / 2:
@@ -284,22 +284,22 @@ class BatchGenerator(object):
                 count += 1
                 if len(x) == 1000:
                     if data_x is None:
-                        data_x = np.asarray(x, dtype=np.float32)
-                        data_y = np.asarray(y, dtype=np.float32)
+                        data_x = np.asarray(x, dtype=np.float64)
+                        data_y = np.asarray(y, dtype=np.float64)
                     else:
-                        data_x = np.concatenate((data_x, np.asarray(x, dtype=np.float32)))
-                        data_y = np.concatenate((data_y, np.asarray(y, dtype=np.float32)))
+                        data_x = np.concatenate((data_x, np.asarray(x, dtype=np.float64)))
+                        data_y = np.concatenate((data_y, np.asarray(y, dtype=np.float64)))
                     x = []
                     y = []
                 if count == self.batch_size:
                     break
             if len(x):
                 if data_x is None:
-                    data_x = np.asarray(x, dtype=np.float32)
-                    data_y = np.asarray(y, dtype=np.float32)
+                    data_x = np.asarray(x, dtype=np.float64)
+                    data_y = np.asarray(y, dtype=np.float64)
                 else:
-                    data_x = np.concatenate((data_x, np.asarray(x, dtype=np.float32)))
-                    data_y = np.concatenate((data_y, np.asarray(y, dtype=np.float32)))
+                    data_x = np.concatenate((data_x, np.asarray(x, dtype=np.float64)))
+                    data_y = np.concatenate((data_y, np.asarray(y, dtype=np.float64)))
             return data_x.reshape((self.batch_size, 3, 101, 101)), data_y
         else:
             raise StopIteration()
@@ -380,7 +380,7 @@ def csv2np(path):
             warnings.simplefilter("ignore")
             targets = np.genfromtxt(path, delimiter=',')
             if len(targets.shape) is 1 and len(targets) is 3:
-                targets = np.asarray([targets])
+                targets = np.asarray([targets], dtype=np.float64)
             elif len(targets.shape) is 2:
                 pass
             else:
