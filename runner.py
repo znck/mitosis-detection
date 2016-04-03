@@ -63,10 +63,11 @@ def _task_train_filter(arguments):
 
     # 7. Start training epoch
     train_start = time.time()
+    sample, n_sample = dataset.sample(n_positive)
     for epoch in xrange(n_epoch):
         epoch_start = time.time()
         # 7.1. Get a randomly sampled batch.
-        sample, n_sample = dataset.sample(n_positive)
+        #sample, n_sample = dataset.sample(n_positive)
         if arguments.verbose:
             TT.info("> Training on sample dataset %d of %d" % (epoch + 1, n_epoch))
         # 7.2. Create mini batches that fit in RAM.
@@ -75,7 +76,7 @@ def _task_train_filter(arguments):
         for (x, y) in batches:
             y[y > 0] = 1.0
             model.fit(x, y, batch_size=arguments.mini_batch, nb_epoch=1, validation_split=val_split,
-                      callbacks=callbacks, accuracy=True)
+                      callbacks=callbacks, show_accuracy=True)
             time.sleep(0.0001)
         # 7.4. Save weights after each epoch.
         model.save_weights(load_path, True)
@@ -111,8 +112,14 @@ def _task_train(arguments):
     model2 = model_2()
 
     if os.path.exists(load_path):
-        print TT.success("> Loading model from %s" % load_path)
+        print TT.success("> Loading base model from %s" % load_path)
         model.load_weights(load_path)
+    if os.path.exists(load_path1):
+	print TT.success("> Laoding model1 from %s" % load_path1)
+	model1.load_weights(load_path1)
+    if os.path.exists(load_path2):
+	print TT.success("> Loading model2 from %s" % load_path2)
+	model2.load_weights(load_path2)
     n_epoch = arguments.epoch
 
     def save_weights(_1, _2):
@@ -143,15 +150,17 @@ def _task_train(arguments):
         sample, n_sample = dataset.sample(n_positive)
         batch = BatchGenerator(JsonIterator(positive), n_positive, JsonIterator(sample), n_sample, arguments.batch)
         for X_train, Y_train in batch:
-            outputs = model.predict(X_train, Y_train, batch_size=arguments.mini_batch)
+            outputs = model.predict(X_train, batch_size=arguments.mini_batch, verbose=1)
             # Multiply each window with it's prediction and then pass it to the next layer
             for i in range(len(outputs)):
-                X_train[i] = np.dot(X_train[i], outputs[i])
-
+                X_train[i] = np.dot(X_train[i], outputs[i][0])
+	    
+	    print 'Training model1 :'
             model1.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
-                       validation_split=val_split, callbacks=callbacks)
+                       validation_split=val_split, callbacks=callbacks, show_accuracy=True)
+	    print 'Training model2 :'
             model2.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
-                       validation_split=val_split, callbacks=callbacks)
+                       validation_split=val_split, callbacks=callbacks, show_accuracy=True)
 
         model.save_weights(load_path, True)
         model1.save_weights(load_path1, True)
@@ -164,7 +173,7 @@ def _task_train(arguments):
 def _parse_args():
     stub = argparse.ArgumentParser(description="Mitosis Detection Task Runner")
     stub.add_argument("task", help="Run task. (train-filter, train, test, predict)",
-                      choices=['train-filter', 'train', 'test', 'predict'], metavar="task")
+                      choices=['train-filter', 'train', 'test', 'predict','train-cnn'], metavar="task")
     stub.add_argument("path", type=str, help="Directory containing mitosis images", metavar="path")
     stub.add_argument("--epoch", type=int, help="Number of epochs. (Default: 1)", default=1)
     stub.add_argument("--batch", type=int, help="Size of batch fits in memory. (Default: 1000)", default=1000)
@@ -204,6 +213,8 @@ def main():
     try:
         if args.task == 'train-filter':
             _task_train_filter(args)
+	elif args.task == 'train-cnn':
+	    _task_train(args)
         else:
             parser.print_help()
             exit()

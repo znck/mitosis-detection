@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from keras.callbacks import Callback
 from keras.layers import Convolution2D, Dense
 from math import sqrt, ceil
