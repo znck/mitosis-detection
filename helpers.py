@@ -190,47 +190,6 @@ def _read_all_files(path):
     return files
 
 
-class DatasetGenerator(object):
-    def __init__(self, positive, n_positive, sample, n_sample, batch_size, verbose=True):
-        """
-        :type positive: JsonIterator
-        :type n_positive: int
-        :type sample: JsonIterator
-        :type n_sample: int
-        :type batch_size: int
-        """
-        self.verbose = verbose
-        assert batch_size % 2 == 0, "Batch size should be even."
-        self.sample = sample
-        self.positive = positive
-        n_total = n_positive + n_sample
-        self.n = int(n_total / batch_size)
-        self.i = 0
-        self.batch_size = batch_size
-
-    def flow(self):
-        for i in xrange(self.n):
-            if self.verbose:
-                print TT.WARNING + "> Creating batch %d of %d" % (self.i, self.n), TT.END
-
-            x = []
-            y = []
-            count = 0
-            for patch, target in self.positive:
-                x.append(patch)
-                y.append(target)
-                count += 1
-                if count == self.batch_size / 2:
-                    break
-            for patch, target in self.sample:
-                x.append(patch)
-                y.append(target)
-                count += 1
-                if count == self.batch_size:
-                    break
-            yield np.asarray(x, dtype=np.float32), np.asarray(y, dtype=np.float32)
-
-
 class BatchGenerator(object):
     def __init__(self, positive, n_positive, sample, n_sample, batch_size, verbose=True):
         """
@@ -303,6 +262,50 @@ class BatchGenerator(object):
             return data_x.reshape((self.batch_size, 3, 101, 101)), data_y
         else:
             raise StopIteration()
+
+class ImageIterator(object):
+    def __init__(self, input, output=None, size=(101, 101)):
+        orig = cv2.imread(input)
+        self.size = size
+        self.image_size = orig.shape[:2]
+        self.image = cv2.copyMakeBorder(orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
+                                        right=self.size[0], borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1) / 255.
+        self.output = np.zeros(orig.size)
+        if output is not None:
+            v = csv2np(output)
+            for pos in v:
+                (x, y, p) = pos
+                x = int(x)
+                y = int(y)
+                p = float(p)
+                for i in xrange(-10, 10):
+                    for j in xrange(-10, 10):
+                        _x = x + i
+                        _y = y + j
+                        self.output[_x, _y] = p
+                        count += 1
+        self.i = 0
+        self.len = np.prod(self.image_size)
+        self.batch = 512
+
+    def __iter__(self, batch=512):
+        self.batch = 512
+        return self
+
+    def next(self):
+        j = 0
+        batch = []
+        while j < self.batch:
+            if self.i < self.len:
+                x = (int) self.i % (int) self.image_size[0] + self.size[0]
+                y = (int) self.i / (int) self.image_size[0] + self.size[1]
+                batch.append(patch_at(self.image, x, y, self.size))
+            else:
+                raise StopIteration()
+            j = j + 1
+            self.i = self.i + 1
+        return batch
+
 
 
 class JsonIterator(object):
