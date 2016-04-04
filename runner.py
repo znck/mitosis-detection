@@ -188,21 +188,30 @@ def _task_test(arguments):
     if os.path.exists(load_path):
         print TT.success("> Loading base model from %s" % load_path)
         model.load_weights(load_path)
-    # if os.path.exists(load_path1):
-	# print TT.success("> Laoding model1 from %s" % load_path1)
-	# model1.load_weights(load_path1)
-    # if os.path.exists(load_path2):
-	# print TT.success("> Loading model2 from %s" % load_path2)
-	# model2.load_weights(load_path2)
+    if os.path.exists(load_path1):
+    	print TT.success("> Laoding model1 from %s" % load_path1)
+    	model1.load_weights(load_path1)
+    if os.path.exists(load_path2):
+    	print TT.success("> Loading model2 from %s" % load_path2)
+    	model2.load_weights(load_path2)
     test_data = ImageIterator(arguments.input, arguments.output, arguments.batch)
-    import matplotlib.pyplot as plt
-    plt.imshow(test_data.output, cmap='Greys')
-    plt.figure()
-    p1 = np.zeros(test_data.image_size)
+    # import matplotlib.pyplot as plt
+    # plt.imshow(test_data.output, cmap='Greys')
+    # plt.figure()
+    # p1 = np.zeros(test_data.image_size)
+    out = np.empty((0,2))
     for X, Y in test_data:
-        out = model.predict(X, verbose=1)
-        # out1 = model1.predict(X, batch_size=arguments.mini_batch, verbose=1)
-        # out2 = model2.predict(X, batch_size=arguments.mini_batch, verbose=1)
+        out = np.concatenate(out,model.predict(X, verbose=1))
+        out1 = np.concatenate(out1,model1.predict(X, batch_size=arguments.mini_batch, verbose=1))
+        out2 = np.concatenate(out2,model2.predict(X, batch_size=arguments.mini_batch, verbose=1))
+    base_out = np.reshape(out[:,0], test_data.image_size, order='C')
+    model1_out = np.reshape(out1[:,0], test_data.image_size, order='C')
+    model2_out = np.reshape(out2[:,0], test_data.image_size, order='C')
+    import scipy
+    scipy.misc.imsave('base_out.jpg', base_out)
+    scipy.misc.imsave('model1_out.jpg', model1_out)
+    scipy.misc.imsave('model2_out.jpg', model2_out)
+
 
 def _parse_args():
     stub = argparse.ArgumentParser(description="Mitosis Detection Task Runner")
