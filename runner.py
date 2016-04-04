@@ -9,7 +9,7 @@ import traceback
 import numpy as np
 
 from callbacks import PrintGradients, VisualizeWeights, PlotLoss
-from helpers import JsonIterator, RandomSampler, TT, DatasetGenerator, BatchGenerator
+from helpers import JsonIterator, RandomSampler, TT, BatchGenerator, ImageIterator
 
 
 def _task_train_filter(arguments):
@@ -154,7 +154,7 @@ def _task_train(arguments):
             # Multiply each window with it's prediction and then pass it to the next layer
             for i in range(len(outputs)):
                 X_train[i] = np.dot(X_train[i], outputs[i][0])
-	    
+
 	    print 'Training model1 :'
             model1.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
                        validation_split=val_split, callbacks=callbacks, show_accuracy=True)
@@ -170,6 +170,40 @@ def _task_train(arguments):
     print TT.success("> Training finished. Time take: %.2f seconds." % (time.time() - train_start))
 
 
+def _task_test(arguments):
+    path = arguments.path
+    assert os.path.exists(path), path + " does not exists"
+    path = os.path.abspath(path)
+    load_path = os.path.join(path, 'weights.npy')
+    # load_path1 = os.path.join(path, 'weights1.npy')
+    # load_path2 = os.path.join(path, 'weights2.npy')
+
+    if arguments.verbose:
+        print TT.info("> Compiling model...")
+    from mitosis import model_base, model_1, model_2
+    model = model_base()
+    # model1 = model_1()
+    # model2 = model_2()
+
+    if os.path.exists(load_path):
+        print TT.success("> Loading base model from %s" % load_path)
+        model.load_weights(load_path)
+    # if os.path.exists(load_path1):
+	# print TT.success("> Laoding model1 from %s" % load_path1)
+	# model1.load_weights(load_path1)
+    # if os.path.exists(load_path2):
+	# print TT.success("> Loading model2 from %s" % load_path2)
+	# model2.load_weights(load_path2)
+    test_data = ImageIterator(arguments.input, arguments.output, arguments.batch)
+    import matplotlib.pyplot as plt
+    plt.imshow(test_data.output, cmap='Greys')
+    plt.figure()
+    p1 = np.zeros(test_data.image_size)
+    for X, Y in test_data:
+        out = model.predict(X, verbose=1)
+        # out1 = model1.predict(X, batch_size=arguments.mini_batch, verbose=1)
+        # out2 = model2.predict(X, batch_size=arguments.mini_batch, verbose=1)
+
 def _parse_args():
     stub = argparse.ArgumentParser(description="Mitosis Detection Task Runner")
     stub.add_argument("task", help="Run task. (train-filter, train, test, predict)",
@@ -181,6 +215,8 @@ def _parse_args():
     stub.add_argument("--lr", type=float, help="Learning Rate. (Default: .01)", default=.01)
     stub.add_argument("--rho", type=float, help="RHO. (Default: .9)", default=.9)
     stub.add_argument("--epsilon", type=float, help="RHO. (Default: 1e-6)", default=1.0e-6)
+    stub.add_argument("--output", type=str, help="output. (Default: None)", default=None)
+    stub.add_argument("--input", type=str, help="input. (Default: None)", default=None)
     stub.add_argument("-v", action="store_true", help="Increase verbosity. (Default: Disabled)", default=False,
                       dest='verbose')
     stub.add_argument("--model", type=str, help="Saved model weights. (Default: ${path}/weights.npy)")
@@ -213,8 +249,10 @@ def main():
     try:
         if args.task == 'train-filter':
             _task_train_filter(args)
-	elif args.task == 'train-cnn':
-	    _task_train(args)
+    	elif args.task == 'train-cnn':
+    	    _task_train(args)
+        elif args.task == 'test':
+    	    _task_test(args)
         else:
             parser.print_help()
             exit()

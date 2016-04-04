@@ -264,13 +264,15 @@ class BatchGenerator(object):
             raise StopIteration()
 
 class ImageIterator(object):
-    def __init__(self, input, output=None, size=(101, 101)):
+    def __init__(self, input, output=None, batch=1, size=(101, 101)):
         orig = cv2.imread(input)
+        print orig.shape
         self.size = size
         self.image_size = orig.shape[:2]
         self.image = cv2.copyMakeBorder(orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
                                         right=self.size[0], borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1) / 255.
-        self.output = np.zeros(orig.size)
+        print self.image.shape
+        self.output = np.zeros(self.image_size)
         if output is not None:
             v = csv2np(output)
             for pos in v:
@@ -283,28 +285,29 @@ class ImageIterator(object):
                         _x = x + i
                         _y = y + j
                         self.output[_x, _y] = p
-                        count += 1
         self.i = 0
         self.len = np.prod(self.image_size)
-        self.batch = 512
+        self.batch = batch
 
-    def __iter__(self, batch=512):
-        self.batch = 512
+    def __iter__(self):
+        self.i = 0
         return self
 
     def next(self):
         j = 0
         batch = []
+        target = []
         while j < self.batch:
             if self.i < self.len:
-                x = (int) self.i % (int) self.image_size[0] + self.size[0]
-                y = (int) self.i / (int) self.image_size[0] + self.size[1]
-                batch.append(patch_at(self.image, x, y, self.size))
+                x = self.i % self.image_size[1]
+                y = self.i / self.image_size[1]
+                target.append((self.output[y, x], 1. - self.output[y, x]))
+                batch.append(patch_at(self.image, y, x, self.size))
             else:
                 raise StopIteration()
             j = j + 1
             self.i = self.i + 1
-        return batch
+        return np.asarray(batch), np.asarray(target)
 
 
 
@@ -391,3 +394,13 @@ def csv2np(path):
     except IOError:
         targets = np.array([])
     return targets
+
+
+if __name__ == '__main__':
+    import sys
+    itr = ImageIterator(sys.argv[1], sys.argv[2], batch=1)
+    import matplotlib.pyplot as plt
+    for i in itr:
+        print i[0].shape
+        plt.imshow(i[0].transpose(1, 2, 0))
+        plt.show()
