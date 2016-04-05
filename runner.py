@@ -221,6 +221,39 @@ def _task_test(arguments):
     scipy.misc.imsave('model1_out.jpg', model1_out)
     scipy.misc.imsave('model2_out.jpg', model2_out)
 
+def _task_test_base(arguments):
+    path = arguments.path
+    assert os.path.exists(path), path + " does not exists"
+    path = os.path.abspath(path)
+    load_path = os.path.join(path, 'weights.npy')
+
+    if arguments.verbose:
+        print TT.info("> Compiling model...")
+    from mitosis import model_base
+    model = model_base()
+
+    if os.path.exists(load_path):
+        print TT.success("> Loading base model from %s" % load_path)
+        model.load_weights(load_path)
+
+    test_data = ImageIterator(arguments.input, arguments.output, arguments.batch)
+    # import matplotlib.pyplot as plt
+    # plt.imshow(test_data.output, cmap='Greys')
+    # plt.figure()
+    # p1 = np.zeros(test_data.image_size)
+    out = None
+    i = 0
+    for X, Y in test_data:
+        print i
+        i = i + 1
+        tmp = model.predict(X, verbose=1)
+        out = append(out, tmp)
+
+    base_out = np.reshape(out[:,0], test_data.image_size, order='C')
+    import scipy
+    np.save('base_out.npy', base_out)
+    scipy.misc.imsave('base_out.jpg', base_out)
+    
 def append(src, dst):
     dst = np.asarray(dst)
     if src is None:
@@ -230,7 +263,7 @@ def append(src, dst):
 def _parse_args():
     stub = argparse.ArgumentParser(description="Mitosis Detection Task Runner")
     stub.add_argument("task", help="Run task. (train-filter, train, test, predict)",
-                      choices=['train-filter', 'train', 'test', 'predict','train-cnn'], metavar="task")
+                      choices=['train-filter', 'train', 'test', 'predict','train-cnn', 'test-base'], metavar="task")
     stub.add_argument("path", type=str, help="Directory containing mitosis images", metavar="path")
     stub.add_argument("--epoch", type=int, help="Number of epochs. (Default: 1)", default=1)
     stub.add_argument("--batch", type=int, help="Size of batch fits in memory. (Default: 1000)", default=1000)
@@ -276,6 +309,8 @@ def main():
     	    _task_train(args)
         elif args.task == 'test':
     	    _task_test(args)
+        elif args.task == 'test-base':
+            _task_test_base(args)
         else:
             parser.print_help()
             exit()
