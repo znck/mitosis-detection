@@ -64,6 +64,7 @@ def model_2(lr=.001, rho=.9, epsilon=1.0e-6):
     dnn.add(Flatten())
     dnn.add(Dense(100))
     dnn.add(Dense(2))
+    dnn.add(Activation('softmax'))
     dnn.compile(loss='binary_crossentropy', optimizer=Adamax(lr=lr))
 
     return dnn
