@@ -5,6 +5,7 @@ import warnings
 
 import cv2
 import numpy as np
+import time
 from keras.utils.generic_utils import Progbar
 
 
@@ -104,11 +105,13 @@ class RandomSampler(object):
             ratio = self.ratio
         pos, pos_c = self.positive()
         neg, neg_c = self.sample(int(pos_c * ratio))
-        for index in pos:
+        for index in pos:  # Append positive data to negative data.
             if index not in neg:
                 neg[index] = pos[index]
             else:
                 neg[index] += pos[index]
+        for index in neg:
+            neg[index] = sorted(neg[index])
         self.sampled_dataset = neg
         TT.info("> %d positive and %d negative." % (pos_c, neg_c))
         self.dataset_size = pos_c + neg_c
@@ -244,56 +247,62 @@ def read_all_files(path):
 
 
 class BatchGenerator(object):
-    def __init__(self, dataset, batch_size, verbose=True):
+    def __init__(self, dataset, batch_size, verbose=True, pool_size=2000):
         """
         :type dataset: JsonIterator
         :type batch_size: int
         """
         self.verbose = verbose
         self.dataset = dataset
+        self.pool_size = pool_size
         TT.info("> %d images in current dataset." % len(dataset))
         self.n = int(len(dataset) / batch_size)
-        if abs(float(self.n) - (float(len(dataset))/batch_size)) > 0.00001:
+        if abs(float(self.n) - (float(len(dataset)) / batch_size)) > 0.00001:
             TT.warn("> Batch size is not exact multiple. Some images might be truncated.")
         self.i = 0
         self.batch_size = batch_size
 
     def __iter__(self):
-        return self
+        return self.generator()
 
     def __len__(self):
         return self.n
 
-    def next(self):
-        def append(dst=None, item=None):
+    def generator(self):
+        def append(dst, pool, item):
+            if item is not None:
+                pool.append(item)
+                if len(pool) < min(self.pool_size, self.batch_size):
+                    return dst, pool
             if dst is None:
-                return np.asarray([item], dtype=np.float64)
-            try:
-                return np.concatenate((dst, [item]))
-            except ValueError:
-                print "Cannot append these sizes", dst.shape, item.shape
-                exit(-1)
-        if self.i < self.n:
-            self.i += 1
-            if self.verbose:
-                TT.warn("> Creating batch %d of %d" % (self.i, self.n))
-
-            data_x = None
-            data_y = None
-            count = 0
-            if self.verbose:
-                bar = Progbar(self.batch_size)
-            for x, y in self.dataset:
-                data_x = append(data_x, x)
-                data_y = append(data_y, np.asarray(y, dtype=np.float64))
-                count += 1
+                return np.asarray(pool, dtype=np.float64), []
+            if len(pool):
+                return np.concatenate((dst, pool)), []
+            return dst, []
+        if self.verbose:
+            TT.warn("> Creating batch %d of %d" % (self.i, self.n))
+        data_x = None
+        data_y = None
+        pool_x = []
+        pool_y = []
+        count = 0
+        start = time.clock()
+        for x, y in self.dataset:
+            data_x, pool_x = append(data_x, pool_x, x)
+            data_y, pool_y = append(data_y, pool_y, np.asarray(y, dtype=np.float64))
+            count += 1
+            if count >= self.batch_size:
+                data_x, pool_x = append(data_x, pool_x, None)
+                data_y, pool_y = append(data_y, pool_y, None)
                 if self.verbose:
-                    bar.update(count)
-                if count >= self.batch_size:
-                    break
-            return data_x, data_y
-        else:
-            raise StopIteration()
+                    TT.info("> Completed in", time.clock() - start, "seconds")
+                yield data_x, data_y
+                if self.verbose:
+                    TT.warn("> Creating batch %d of %d" % (count, self.n))
+                count = 0
+                data_x = None
+                data_y = None
+                start = time.clock()
 
 
 class ImageIterator(object):
@@ -302,8 +311,8 @@ class ImageIterator(object):
         self.size = size
         self.radius = 10
         self.image_size = orig.shape[:2]
-        self.image = cv2.copyMakeBorder(orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
-                                        right=self.size[0], borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1)
+        self.image = img2np(cv2.copyMakeBorder(orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
+                                               right=self.size[0], borderType=cv2.BORDER_DEFAULT))
         self.output = np.zeros(self.image_size)
         if output is not None:
             v = csv2np(output)
@@ -353,9 +362,8 @@ class JsonIterator(object):
         self.x = self.y = self.p = None  # Store state of current pixel.
         self.cur_file = 0
         self.index = 0
-        self.orig = normalize(cv2.imread(os.path.join(self.path, self.files[0])))
-        self.image = img2np(cv2.copyMakeBorder(self.orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
-                                               right=self.size[0], borderType=cv2.BORDER_DEFAULT))
+        self.orig = None
+        self.image = None
 
     def __len__(self):
         return self.len
@@ -363,32 +371,17 @@ class JsonIterator(object):
     def __iter__(self):
         self.index = 0
         self.cur_file = 0
-        return self
+        return self.generator()
 
-    def next(self):
-        if self.cur_file >= len(self.files):
-            raise StopIteration()
-        old_filename = filename = self.files[self.cur_file]
-
-        self.index += 1
-        while self.cur_file < len(self.files) and self.index >= len(self.raw[filename]):
-            self.cur_file += 1
-            self.index = 0
-            filename = self.files[self.cur_file]
-
-        if self.cur_file >= len(self.files):
-            raise StopIteration()
-
-        if old_filename != filename:
+    def generator(self):
+        for cur_file in xrange(len(self.files)):
+            filename = self.files[cur_file]
             self.orig = normalize(cv2.imread(os.path.join(self.path, self.files[self.cur_file])))
             self.image = img2np(cv2.copyMakeBorder(self.orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
                                                    right=self.size[0], borderType=cv2.BORDER_DEFAULT))
-
-        x, y, p = self.raw[filename][self.index]
-        self.x = x
-        self.y = y
-        self.p = p
-        return patch_at(self.image, x, y, self.size), p
+            for index in xrange(len(self.raw[filename])):
+                x, y, p = self.raw[filename][self.index]
+                yield patch_at(self.image, x, y, self.size), p
 
 
 def patch_at(image, x, y, size=(101, 101)):
@@ -537,8 +530,10 @@ def _create_dataset():
         TT.info("Batch", count, "of", len(gen), "created.")
     TT.success("Finished.")
 
+
 if __name__ == '__main__':
     import sys
+
     if len(sys.argv) == 2:
         _test_csv_np()
         _test_patch_at()

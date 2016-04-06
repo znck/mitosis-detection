@@ -230,22 +230,23 @@ def _task_test_base(arguments):
         model.load_weights(load_path)
 
     test_data = ImageIterator(arguments.input, arguments.output, arguments.batch)
-    # import matplotlib.pyplot as plt
-    # plt.imshow(test_data.output, cmap='Greys')
-    # plt.figure()
-    # p1 = np.zeros(test_data.image_size)
     out = None
+    lab = None
     i = 0
     for X, Y in test_data:
         print i
-        i = i + 1
+        i += 1
         tmp = model.predict(X, verbose=1)
         out = append(out, tmp)
+        lab = append(lab, Y)
 
+    lab_out = np.reshape(lab[:, 0], test_data.image_size, order='C')
     base_out = np.reshape(out[:, 0], test_data.image_size, order='C')
-    import scipy
     np.save('base_out.npy', base_out)
+    np.save('lab_out.npy', lab_out)
+    import scipy.misc
     scipy.misc.imsave('base_out.jpg', base_out)
+    scipy.misc.imsave('lab_out.jpg', lab_out)
 
 
 def append(src, dst):
