@@ -101,6 +101,10 @@ class RandomSampler(object):
     def dataset(self, ratio=None):
         if self.sampled_dataset is not None:
             return self.sampled_dataset, self.dataset_size
+
+        if os.path.exists(os.path.join(self.path, 'dataset.json')):
+            dataset = json.load(open(os.path.join(self.path, 'dataset.json')))
+            return dataset['data'], int(dataset['size'])
         if ratio is None:
             ratio = self.ratio
         pos, pos_c = self.positive()
@@ -115,6 +119,8 @@ class RandomSampler(object):
         self.sampled_dataset = neg
         TT.info("> %d positive and %d negative." % (pos_c, neg_c))
         self.dataset_size = pos_c + neg_c
+        json.dump({'data': self.sampled_dataset, 'size': self.dataset_size},
+                  open(os.path.join(self.path, 'dataset.json'), 'w'))
         return self.sampled_dataset, self.dataset_size
 
     def sample(self, batch_size=100):
@@ -200,10 +206,12 @@ class RandomSampler(object):
         expanded = {}  # Holds list of files and positive pixels in flattened image with mitosis probability.
         normal = {}  # Holds list of files and positive pixel (y, x) along with class probabilities.
         #              (0: Mitotic, 1: Non-Mitotic)
+        total = 0
         for data_image, target_csv in self.files:
             labels = csv2np(os.path.join(self.path, target_csv))  # Load CSV annotations into numpy array.
             expanded[data_image] = {}  # Initialize list for file
             normal[data_image] = []
+            total += len(labels)
             for (x, y, p) in labels:  # Iterate over annotated pixel values.
                 x = int(x)
                 y = int(y)
@@ -224,7 +232,7 @@ class RandomSampler(object):
         self.positives = normal
         self.positives_sorted = expanded
         self.positives_count = count
-        TT.success("> Total", count, "positive pixels.")
+        TT.success("> Total", count, "positive pixels from", total, "annotations.")
         return normal, count
 
 
@@ -295,10 +303,12 @@ class BatchGenerator(object):
                 data_x, pool_x = append(data_x, pool_x, None)
                 data_y, pool_y = append(data_y, pool_y, None)
                 if self.verbose:
-                    TT.info("> Completed in", time.clock() - start, "seconds")
+                    TT.info("> Completed in", time.clock() - start, "seconds. This batch has", int(np.sum(data_y[:, 0])),
+                            "positive pixels and", int(np.sum(data_y[:, 1])), "negative pixels.")
                 yield data_x, data_y
                 if self.verbose:
-                    TT.warn("> Creating batch %d of %d" % (count, self.n))
+                    self.i += 1
+                    TT.warn("> Creating batch %d of %d" % (self.i, self.n))
                 count = 0
                 data_x = None
                 data_y = None

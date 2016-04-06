@@ -76,16 +76,12 @@ def model_base(lr=.001, rho=.9, epsilon=1.0e-6):
     nn.add(MyConvolution2D(16, 6, 6, init='he_normal'))
     nn.add(LeakyReLU(alpha=.01))
     nn.add(MaxPooling2D())
-    #nn.add(BatchNormalization())
     nn.add(MyConvolution2D(16, 5, 5, init='he_normal'))
     nn.add(LeakyReLU(alpha=.01))
     nn.add(MaxPooling2D())
     nn.add(MyConvolution2D(16, 3, 3, init='he_normal'))
     nn.add(LeakyReLU(alpha=.01))
     nn.add(MaxPooling2D())
-    #nn.add(MyConvolution2D(16,4,4, init='he_normal'))
-    #nn.add(LeakyReLU(alpha=0.01))
-    #nn.add(MaxPooling2D())
     nn.add(Flatten())
     nn.add(Dense(200))
     nn.add(LeakyReLU(alpha=.01))
@@ -94,7 +90,7 @@ def model_base(lr=.001, rho=.9, epsilon=1.0e-6):
     nn.add(Dense(2))
     nn.add(LeakyReLU(alpha=.01))
     nn.add(Activation('softmax'))
-    nn.compile(loss='binary_crossentropy', optimizer=Adamax(lr=lr))
+    nn.compile(loss='binary_crossentropy', optimizer=Adamax(lr=lr), class_mode='binary')
 
     return nn
 
