@@ -9,6 +9,10 @@ from keras.utils.generic_utils import Progbar
 
 
 class TT:
+    """
+    Utility class to pretty print text.
+    """
+
     def __init__(self):
         pass
 
@@ -51,142 +55,176 @@ class TT:
 
 
 class RandomSampler(object):
-    def __init__(self, path, size=(1539, 1376), patch=(101, 101), verbose=True):
+    """
+    A data sampler interface to curate data points from given directory.
+    Directory structure:
+    > root
+        > DataSet
+            > frames
+                > x40
+                    > .tiff data images
+            > mitosis
+                > .csv target annotations
+    """
+
+    def __init__(self, path, image_size=(1539, 1376), patch_size=(101, 101), verbose=True):
         """
         Samples all the positive pixels or given no. of random pixels from all the images in a path.
         """
-        self.__count = None
-        self.__positives = None
-        self._path = path
-        self._files = _read_all_files(path)
-        self._size = size
-        self._patch = patch
-        self._eff_x = size[0] - patch[0] + 1
-        self._eff_y = size[1] - patch[1] + 1
-        self._pad_x = patch[0] / 2
-        self._pad_y = patch[1] / 2
-        self._pixels_per_image = np.prod(np.asarray(size) - np.asarray(patch) + (1, 1))
-        self._i = 0
-        self._batch = 1
-        self._n = self._pixels_per_image * len(self._files)
-        self.verbose = False
-        self._positives = self.positive_sorted()
+        self.path = path  # Root directory
+        self.files = None  # List of all dataset files
+        self.image_size = image_size  # Size of image. TODO: It can be auto detected.
+        self.patch_size = patch_size  # Size of patch. Input size of DNN
+        self.pixels_per_image = np.prod(image_size)
+        self.i = 0
+        self.batch = 1
+        self.positives_sorted = None
+        self.positives = None  # Iterable list of positive data samples.
+        self.sampled = None  # Iterable list of random data samples.
+        self.positives_count = 0
         self.verbose = verbose
+        self.radius = 10
+
+    def __len__(self):
+        if self.files is None:
+            self.files = read_all_files(self.path)
+        return self.pixels_per_image * len(self.files)
 
     def set_batch_size(self, batch_size=100):
-        self._batch = batch_size
+        self.batch = batch_size
         return self
 
     def sample(self, batch_size=100):
-        self._batch = batch_size
+        if self.sampled is not None and self.batch == batch_size:
+            return self.sampled, batch_size
+
+        if os.path.exists(os.path.join(self.path, 'negatives.json')):
+            data = json.load(open(os.path.join(self.path, 'negatives.json')))
+            if int(data['count']) == batch_size:
+                return data['data'], batch_size
+
+        self.batch = batch_size
+
         if self.verbose:
             TT.info("> Creating a random dataset...")
-        indices = [int(random.uniform(0, self._n)) for i in xrange(0, self._batch)]
+
+        if self.files is None:
+            self.files = read_all_files(self.path)
+
         sampled = {}
-        bar = Progbar(len(indices))
-        i = 0
+        bar = Progbar(self.batch)
         count = 0
+        positives = 0
         if self.verbose:
-            bar.update(i)
-        for index in indices:
-            file_id = index / self._pixels_per_image
-            filename, _ = self._files[file_id]
-            if filename not in sampled:
-                sampled[filename] = []
-            pixel_index = index % self._pixels_per_image
-            x = (pixel_index / self._eff_x) + self._pad_x
-            y = (pixel_index % self._eff_y) + self._pad_y
-            p = 0.0
-            if filename in self._positives and (x * self._size[0] + y) in self._positives[filename]:
-                p = float(self._positives[filename][x * self._size[0] + y])
-            sampled[filename].append((x, y, (p, 1. - p)))
+            bar.update(count)
+        for index in random.sample(range(len(self)), self.batch):
+            file_id = index / self.pixels_per_image
+            image, csv = self.files[file_id]
+            if image not in sampled:
+                sampled[image] = []
+            pixel = index % self.pixels_per_image
+            if image in self.positives_sorted and pixel in self.positives_sorted[image]:
+                p = self.positives_sorted[image][pixel]
+                positives += 1
+            else:
+                p = 0.
+            (x, y) = self.pixel_to_xy(pixel)
+            sampled[image].append([x, y, (p, 1. - p)])
             count += 1
             if self.verbose:
-                i += 1
-                bar.update(i)
+                bar.update(count)
+        self.sampled = sampled
+        json.dump({'data': sampled, 'count': count}, open(os.path.join(self.path, 'negatives.json')))
 
         return sampled, count
 
-    def positive_sorted(self):
-        if os.path.exists(os.path.join(self._path, 'positives_sorted.json')):
-            return json.load(open(os.path.join(self._path, 'positives_sorted.json')))
+    def pixel_to_xy(self, pixel):
+        return pixel / self.image_size[0], pixel % self.image_size[0]  # TODO: Verify this. `(p / width, p % width)`
 
-        normal, _, expanded = self.positive(True)
+    def get_sorted_positives(self):
+        if self.positives_sorted is not None:
+            return self.positives_sorted
 
-        if False:
-            json.dump(normal, open(os.path.join(self._path, 'positives.json'), 'w'))
-            json.dump(expanded, open(os.path.join(self._path, 'positives_sorted.json'), 'w'))
+        if os.path.exists(os.path.join(self.path, 'positives_sorted.json')):
+            return json.load(open(os.path.join(self.path, 'positives_sorted.json')))
 
-        return expanded
+        self.positive()
 
-    def positive(self, expand=False, n_pix=float('inf')):
-        if self.__positives:
-            return self.__positives, self.__count
-        files = _read_all_files(self._path)
+        if not os.path.exists(os.path.join(self.path, 'positives_sorted.json')):
+            json.dump(self.positives_sorted, open(os.path.join(self.path, 'positives_sorted.json'), 'w'))
 
-        if self.verbose:
-            print TT.INFO + "> Collecting positive samples from dataset...", TT.END
+        return self.positives_sorted
 
-        if self.verbose:
-            print "%d files" % len(files)
+    def positive(self):
+        """
+        Create a list of positive data points, expand them to square disk of radius `self.radius` pixels.
+        :return: Dictionary(key: filename, value: [x, y, (p, 1-p)])
+        """
+        if self.positives is not None:  # If already calculated then return it.
+            return self.positives, self.positives_count
 
-        bar = Progbar(len(files))
-        index = 0
-        count = 0
-        if self.verbose is 1:
-            bar.update(index)
-        expanded = {}
-        normal = {}
-        for f, _ in files:
-            v = csv2np(_)
-            expanded[f] = {}
-            normal[f] = []
-            for pos in v:
-                (x, y, p) = pos
+        if os.path.exists(os.path.join(self.path, 'positives.json')):
+            data = json.load(open(os.path.join(self.path, 'positives.json')))
+            return data['data'], data['count']
+
+        if self.files is None:  # Curate list of files if not done already.
+            self.files = read_all_files(self.path)
+
+        bar = Progbar(len(self.files))  # Create instance of progress bar.
+        if self.verbose:  # Verbose output for debugging.
+            bar.update(0)
+            print TT.info("> Collecting positive samples from dataset...")
+            print "%d files" % len(self.files)
+
+        index = 0  # File index - to update state of progress bar.
+        count = 0  # Holds total number of positive samples.
+        expanded = {}  # Holds list of files and positive pixels in flattened image with mitosis probability.
+        normal = {}  # Holds list of files and positive pixel (y, x) along with class probabilities.
+        #              (0: Mitotic, 1: Non-Mitotic)
+        for data_image, target_csv in self.files:
+            labels = csv2np(os.path.join(self.path, target_csv))  # Load CSV annotations into numpy array.
+            expanded[data_image] = {}  # Initialize list for file
+            normal[data_image] = []
+            for (x, y, p) in labels:  # Iterate over annotated pixel values.
                 x = int(x)
                 y = int(y)
                 p = float(p)
-                for i in xrange(-10, 10):
-                    for j in xrange(-10, 10):
-                        _x = x + i
-                        _y = y + j
-                        expanded[f][_x * 1539 + _y] = p
-                        normal[f].append((_x, _y, (p, 1. - p)))
+                # Image position, horizontal -> y, vertical -> x
+                # Image size, (y, x)
+                # @see http://www.scipy-lectures.org/advanced/image_processing/#basic-manipulations
+                range_x = xrange(max(0, x - self.radius), min(x + self.radius, self.image_size[1]))
+                range_y = xrange(max(0, y - self.radius), min(y + self.radius, self.image_size[0]))
+                for i in range_x:
+                    for j in range_y:
+                        expanded[data_image][i * self.image_size[0] + j] = p  # TODO: Verify this. `x * width + y`
+                        normal[data_image].append([i, j, (p, 1. - p)])  # (x, y) => (row, column)
                         count += 1
-                        if count >= n_pix:
-                            break
-                    if count >= n_pix:
-                        break
-                if count >= n_pix:
-                    break
-            if count >= n_pix:
-                break
             index += 1
             if self.verbose is 1:
                 bar.update(index)
-        self.__positives = normal
-        self.__count = count
-        if expand:
-            return normal, count, expanded
+        self.positives = normal
+        self.positives_sorted = expanded
+        self.positives_count = count
+        json.dump({'data': self.positives, 'count': self.positives_count},
+                  open(os.path.join(self.path, 'positives.json'), 'w'))
         return normal, count
 
 
-def _read_all_files(path):
-    # Prepare list of directories
-    directories = []
-    for name in os.listdir(path):
-        if os.path.isdir(os.path.join(path, name)):
-            directories.append(os.path.join(path, name))
+def read_all_files(path):
     files = []
-    for directory in directories:
-        for name in os.listdir(os.path.join(directory, 'frames/x40/')):
+    for directory in os.listdir(path):  # Get everything in path.
+        if not os.path.isdir(os.path.join(path, directory)):  # Check if it is directory.
+            continue
+        # Get everything in directory.
+        for name in os.listdir(os.path.join(os.path.join(path, directory), 'frames/x40/')):
+            # Append image and csv relative paths.
             files.append(
                 (
                     os.path.join(directory, 'frames/x40/' + name),
                     os.path.join(directory, 'mitosis/' + name.replace('.tiff', '_mitosis.csv'))
                 )
             )
-
+    files.sort()  # Sort list of files.
     return files
 
 
@@ -263,15 +301,14 @@ class BatchGenerator(object):
         else:
             raise StopIteration()
 
+
 class ImageIterator(object):
-    def __init__(self, input, output=None, batch=1, size=(101, 101)):
-        orig = cv2.imread(input)
-        print orig.shape
+    def __init__(self, input_file, output=None, batch=1, size=(101, 101)):
+        orig = normalize(cv2.imread(input_file))
         self.size = size
         self.image_size = orig.shape[:2]
         self.image = cv2.copyMakeBorder(orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
-                                        right=self.size[0], borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1) / 255.
-        print self.image.shape
+                                        right=self.size[0], borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1)
         self.output = np.zeros(self.image_size)
         if output is not None:
             v = csv2np(output)
@@ -305,10 +342,9 @@ class ImageIterator(object):
                 batch.append(patch_at(self.image, y, x, self.size))
             else:
                 raise StopIteration()
-            j = j + 1
-            self.i = self.i + 1
+            j += 1
+            self.i += 1
         return np.asarray(batch), np.asarray(target)
-
 
 
 class JsonIterator(object):
@@ -362,22 +398,17 @@ class JsonIterator(object):
 
 
 def patch_at(image, x, y, size=(101, 101)):
-    x_start = x + size[0] / 2
-    y_start = y + size[1] / 2
-    x_end = x_start + size[0]
-    y_end = y_start + size[1]
-    p = image[:, x_start:x_end, y_start:y_end]
-    return p
-
-
-def prepare_negative(path):
-    sampler = RandomSampler(path=path)
-    json.dump(sampler.set_batch_size(65000).sample(), open(os.path.join(path, 'negatives.json'), 'w'))
-
-
-def prepare_positive(path):
-    sampler = RandomSampler(path=path)
-    sampler.positive()
+    """
+    Extract patch from image with extra border of size `size`
+    :param image: numpy image matrix
+    :param x: row number of center pixel
+    :param y: column number of center pixel
+    :param size: dimensions of patch
+    :return:
+    """
+    x += (size[1]) / 2
+    y += (size[0]) / 2
+    return image[:, x:x + size[1], y:y + size[0]]
 
 
 def csv2np(path):
@@ -396,11 +427,69 @@ def csv2np(path):
     return targets
 
 
-if __name__ == '__main__':
+def normalize(arr):
+    arr = arr.astype('float32')
+    if arr.max() > 1.0:
+        arr /= 255.0
+    return arr
+
+
+def _test_image_iterator():
     import sys
+
     itr = ImageIterator(sys.argv[1], sys.argv[2], batch=1)
     import matplotlib.pyplot as plt
-    for i in itr:
-        print i[0].shape
-        plt.imshow(i[0].transpose(1, 2, 0))
+
+    for i_itr in itr:
+        print i_itr[0].shape
+        plt.imshow(i_itr[0].transpose(1, 2, 0))
         plt.show()
+
+
+def _test_csv_np():
+    files = ['empty.csv', 'one.csv', 'two.csv', 'three.csv']
+    outputs = [
+        [],
+        ([1, 1, .5],),
+        ([1, 1, .5], [2, 2, .5]),
+        ([1, 1, .5], [2, 2, .5], [3, 3, .5])
+    ]
+    for filename, output in zip(files, outputs):
+        path = os.path.abspath(os.path.join('tests/csv2np', filename))
+        assert np.array_equiv(output, csv2np(path))
+
+
+def _test_patch_at():
+    size = (101, 101)
+    orig = cv2.imread(os.path.abspath('tests/patch_at/test.tiff'))
+    image = cv2.copyMakeBorder(orig, top=size[1], bottom=size[1], left=size[0], right=size[0],
+                               borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1)
+    patch_0_0 = cv2.imread(os.path.abspath('tests/patch_at/patch_0_0.tiff')).transpose(2, 0, 1)
+    patch_300_500 = cv2.imread(os.path.abspath('tests/patch_at/patch_300_500.tiff')).transpose(2, 0, 1)
+    patch_500_300 = cv2.imread(os.path.abspath('tests/patch_at/patch_500_300.tiff')).transpose(2, 0, 1)
+    pixels = [(51, 51), (351, 551), (551, 351)]
+    outputs = (patch_0_0, patch_300_500, patch_500_300)
+    for (x, y), expected in zip(pixels, outputs):
+        actual = patch_at(image=image, x=x, y=y, size=size)
+        actual = normalize(actual)
+        expected = normalize(expected)
+        try:
+            assert np.array_equiv(expected, actual)
+        except AssertionError:
+            print "Failed: ", (x, y), expected.shape, actual.shape
+            import pylab
+            f = pylab.figure()
+            f.add_subplot(3, 1, 1)
+            pylab.imshow(actual.transpose(1, 2, 0))
+            f.add_subplot(3, 1, 2)
+            pylab.imshow(expected.transpose(1, 2, 0))
+            f.add_subplot(3, 1, 3)
+            diff = expected - actual
+            pylab.imshow(diff.transpose(1, 2, 0))
+            from scipy.linalg import norm
+            print "Norms: ", np.sum(np.abs(diff)), norm(diff.ravel(), 0)
+            pylab.show()
+
+if __name__ == '__main__':
+    _test_csv_np()
+    _test_patch_at()
