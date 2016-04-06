@@ -67,7 +67,7 @@ class RandomSampler(object):
                 > .csv target annotations
     """
 
-    def __init__(self, path, image_size=(1539, 1376), patch_size=(101, 101), verbose=True):
+    def __init__(self, path, image_size=(1376, 1539), patch_size=(101, 101), verbose=True, ratio=1.):
         """
         Samples all the positive pixels or given no. of random pixels from all the images in a path.
         """
@@ -81,9 +81,12 @@ class RandomSampler(object):
         self.positives_sorted = None
         self.positives = None  # Iterable list of positive data samples.
         self.sampled = None  # Iterable list of random data samples.
+        self.sampled_dataset = None
+        self.dataset_size = 0
         self.positives_count = 0
         self.verbose = verbose
         self.radius = 10
+        self.ratio = 1.
 
     def __len__(self):
         if self.files is None:
@@ -94,16 +97,30 @@ class RandomSampler(object):
         self.batch = batch_size
         return self
 
+    def dataset(self, ratio=None):
+        if self.sampled_dataset is not None:
+            return self.sampled_dataset, self.dataset_size
+        if ratio is None:
+            ratio = self.ratio
+        pos, pos_c = self.positive()
+        neg, neg_c = self.sample(int(pos_c * ratio))
+        for index in pos:
+            if index not in neg:
+                neg[index] = pos[index]
+            else:
+                neg[index] += pos[index]
+        self.sampled_dataset = neg
+        TT.info("> %d positive and %d negative." % (pos_c, neg_c))
+        self.dataset_size = pos_c + neg_c
+        return self.sampled_dataset, self.dataset_size
+
     def sample(self, batch_size=100):
         if self.sampled is not None and self.batch == batch_size:
             return self.sampled, batch_size
 
-        if os.path.exists(os.path.join(self.path, 'negatives.json')):
-            data = json.load(open(os.path.join(self.path, 'negatives.json')))
-            if int(data['count']) == batch_size:
-                return data['data'], batch_size
-
         self.batch = batch_size
+
+        self.positive()
 
         if self.verbose:
             TT.info("> Creating a random dataset...")
@@ -111,20 +128,22 @@ class RandomSampler(object):
         if self.files is None:
             self.files = read_all_files(self.path)
 
+        TT.info("> Sampling from", len(self), "pixels.")
+        indices = xrange(len(self))
         sampled = {}
         bar = Progbar(self.batch)
         count = 0
         positives = 0
         if self.verbose:
             bar.update(count)
-        for index in random.sample(range(len(self)), self.batch):
+        for index in random.sample(indices, self.batch):
             file_id = index / self.pixels_per_image
             image, csv = self.files[file_id]
             if image not in sampled:
                 sampled[image] = []
             pixel = index % self.pixels_per_image
             if image in self.positives_sorted and pixel in self.positives_sorted[image]:
-                p = self.positives_sorted[image][pixel]
+                p = 1.
                 positives += 1
             else:
                 p = 0.
@@ -134,12 +153,13 @@ class RandomSampler(object):
             if self.verbose:
                 bar.update(count)
         self.sampled = sampled
-        json.dump({'data': sampled, 'count': count}, open(os.path.join(self.path, 'negatives.json')))
+        if positives > 0:
+            TT.warn("> Out of", batch_size, "sampled pixels,", positives, "pixels are positive.")
 
         return sampled, count
 
     def pixel_to_xy(self, pixel):
-        return pixel / self.image_size[0], pixel % self.image_size[0]  # TODO: Verify this. `(p / width, p % width)`
+        return pixel / self.image_size[1], pixel % self.image_size[1]  # TODO: Verify this. `(p / width, p % width)`
 
     def get_sorted_positives(self):
         if self.positives_sorted is not None:
@@ -155,26 +175,22 @@ class RandomSampler(object):
 
         return self.positives_sorted
 
-    def positive(self):
+    def positive(self, set_positive=1.):
         """
         Create a list of positive data points, expand them to square disk of radius `self.radius` pixels.
+        :param set_positive: Set positive to max(1., p) where p is given probability
         :return: Dictionary(key: filename, value: [x, y, (p, 1-p)])
         """
         if self.positives is not None:  # If already calculated then return it.
             return self.positives, self.positives_count
-
-        if os.path.exists(os.path.join(self.path, 'positives.json')):
-            data = json.load(open(os.path.join(self.path, 'positives.json')))
-            return data['data'], data['count']
 
         if self.files is None:  # Curate list of files if not done already.
             self.files = read_all_files(self.path)
 
         bar = Progbar(len(self.files))  # Create instance of progress bar.
         if self.verbose:  # Verbose output for debugging.
-            bar.update(0)
             print TT.info("> Collecting positive samples from dataset...")
-            print "%d files" % len(self.files)
+            bar.update(0)
 
         index = 0  # File index - to update state of progress bar.
         count = 0  # Holds total number of positive samples.
@@ -188,7 +204,7 @@ class RandomSampler(object):
             for (x, y, p) in labels:  # Iterate over annotated pixel values.
                 x = int(x)
                 y = int(y)
-                p = float(p)
+                p = max(set_positive, float(p))
                 # Image position, horizontal -> y, vertical -> x
                 # Image size, (y, x)
                 # @see http://www.scipy-lectures.org/advanced/image_processing/#basic-manipulations
@@ -200,13 +216,12 @@ class RandomSampler(object):
                         normal[data_image].append([i, j, (p, 1. - p)])  # (x, y) => (row, column)
                         count += 1
             index += 1
-            if self.verbose is 1:
+            if self.verbose:
                 bar.update(index)
         self.positives = normal
         self.positives_sorted = expanded
         self.positives_count = count
-        json.dump({'data': self.positives, 'count': self.positives_count},
-                  open(os.path.join(self.path, 'positives.json'), 'w'))
+        TT.success("> Total", count, "positive pixels.")
         return normal, count
 
 
@@ -229,75 +244,54 @@ def read_all_files(path):
 
 
 class BatchGenerator(object):
-    def __init__(self, positive, n_positive, sample, n_sample, batch_size, verbose=True):
+    def __init__(self, dataset, batch_size, verbose=True):
         """
-        :type positive: JsonIterator
-        :type n_positive: int
-        :type sample: JsonIterator
-        :type n_sample: int
+        :type dataset: JsonIterator
         :type batch_size: int
         """
         self.verbose = verbose
-        assert batch_size % 2 == 0, "Batch size should be even."
-        self.sample = sample
-        self.positive = positive
-        n_total = n_positive + n_sample
-        self.n = int(n_total / batch_size)
+        self.dataset = dataset
+        TT.info("> %d images in current dataset." % len(dataset))
+        self.n = int(len(dataset) / batch_size)
+        if abs(float(self.n) - (float(len(dataset))/batch_size)) > 0.00001:
+            TT.warn("> Batch size is not exact multiple. Some images might be truncated.")
         self.i = 0
         self.batch_size = batch_size
 
     def __iter__(self):
         return self
 
+    def __len__(self):
+        return self.n
+
     def next(self):
+        def append(dst=None, item=None):
+            if dst is None:
+                return np.asarray([item], dtype=np.float64)
+            try:
+                return np.concatenate((dst, [item]))
+            except ValueError:
+                print "Cannot append these sizes", dst.shape, item.shape
+                exit(-1)
         if self.i < self.n:
             self.i += 1
             if self.verbose:
                 TT.warn("> Creating batch %d of %d" % (self.i, self.n))
 
-            x = []
-            y = []
             data_x = None
             data_y = None
             count = 0
-            for patch, target in self.positive:
-                x.append(patch.ravel())
-                y.append(target)
+            if self.verbose:
+                bar = Progbar(self.batch_size)
+            for x, y in self.dataset:
+                data_x = append(data_x, x)
+                data_y = append(data_y, np.asarray(y, dtype=np.float64))
                 count += 1
-                if len(x) == 1000:
-                    if data_x is None:
-                        data_x = np.asanyarray(x, dtype=np.float64)
-                        data_y = np.asanyarray(y, dtype=np.float64)
-                    else:
-                        data_x = np.concatenate((data_x, np.asanyarray(x, dtype=np.float64)))
-                        data_y = np.concatenate((data_y, np.asanyarray(y, dtype=np.float64)))
-                    x = []
-                    y = []
-                if count == self.batch_size / 2:
+                if self.verbose:
+                    bar.update(count)
+                if count >= self.batch_size:
                     break
-            for patch, target in self.sample:
-                x.append(patch.ravel())
-                y.append(target)
-                count += 1
-                if len(x) == 1000:
-                    if data_x is None:
-                        data_x = np.asarray(x, dtype=np.float64)
-                        data_y = np.asarray(y, dtype=np.float64)
-                    else:
-                        data_x = np.concatenate((data_x, np.asarray(x, dtype=np.float64)))
-                        data_y = np.concatenate((data_y, np.asarray(y, dtype=np.float64)))
-                    x = []
-                    y = []
-                if count == self.batch_size:
-                    break
-            if len(x):
-                if data_x is None:
-                    data_x = np.asarray(x, dtype=np.float64)
-                    data_y = np.asarray(y, dtype=np.float64)
-                else:
-                    data_x = np.concatenate((data_x, np.asarray(x, dtype=np.float64)))
-                    data_y = np.concatenate((data_y, np.asarray(y, dtype=np.float64)))
-            return data_x.reshape((self.batch_size, 3, 101, 101)), data_y
+            return data_x, data_y
         else:
             raise StopIteration()
 
@@ -306,6 +300,7 @@ class ImageIterator(object):
     def __init__(self, input_file, output=None, batch=1, size=(101, 101)):
         orig = normalize(cv2.imread(input_file))
         self.size = size
+        self.radius = 10
         self.image_size = orig.shape[:2]
         self.image = cv2.copyMakeBorder(orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
                                         right=self.size[0], borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1)
@@ -317,11 +312,11 @@ class ImageIterator(object):
                 x = int(x)
                 y = int(y)
                 p = float(p)
-                for i in xrange(-10, 10):
-                    for j in xrange(-10, 10):
-                        _x = x + i
-                        _y = y + j
-                        self.output[_x, _y] = p
+                range_x = xrange(max(0, x - self.radius), min(x + self.radius, self.image_size[1]))
+                range_y = xrange(max(0, y - self.radius), min(y + self.radius, self.image_size[0]))
+                for i in range_x:
+                    for j in range_y:
+                        self.output[i, j] = p
         self.i = 0
         self.len = np.prod(self.image_size)
         self.batch = batch
@@ -338,8 +333,8 @@ class ImageIterator(object):
             if self.i < self.len:
                 x = self.i % self.image_size[1]
                 y = self.i / self.image_size[1]
-                target.append((self.output[y, x], 1. - self.output[y, x]))
                 batch.append(patch_at(self.image, y, x, self.size))
+                target.append((self.output[y, x], 1. - self.output[y, x]))
             else:
                 raise StopIteration()
             j += 1
@@ -348,23 +343,22 @@ class ImageIterator(object):
 
 
 class JsonIterator(object):
-    def __init__(self, filename, size=(101, 101)):
+    def __init__(self, raw, path=None, size=(101, 101)):
         self.size = size
-        if isinstance(filename, str):
-            self.raw = json.load(open(filename))
-        elif isinstance(filename, file):
-            self.raw = json.load(filename)
-        elif isinstance(filename, dict):
-            self.raw = filename
-        else:
-            raise AssertionError('JSON Iterator :: ' + type(filename).__name__ + ' is not iterable.')
-        self.files = self.raw.keys()
+        self.path = path
+        self.len = raw[1]
+        self.raw = raw[0]
+        TT.info("> %d images to be iterated." % self.len)
+        self.files = sorted(self.raw.keys())
+        self.x = self.y = self.p = None  # Store state of current pixel.
         self.cur_file = 0
         self.index = 0
-        self.orig = cv2.imread(self.files[0])
-        self.image = cv2.copyMakeBorder(self.orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
-                                        right=self.size[0],
-                                        borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1) / 255.
+        self.orig = normalize(cv2.imread(os.path.join(self.path, self.files[0])))
+        self.image = img2np(cv2.copyMakeBorder(self.orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
+                                               right=self.size[0], borderType=cv2.BORDER_DEFAULT))
+
+    def __len__(self):
+        return self.len
 
     def __iter__(self):
         self.index = 0
@@ -386,14 +380,14 @@ class JsonIterator(object):
             raise StopIteration()
 
         if old_filename != filename:
-            self.orig = cv2.imread(self.files[self.cur_file])
-            self.image = cv2.copyMakeBorder(self.orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
-                                            right=self.size[0],
-                                            borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1) / 255.
+            self.orig = normalize(cv2.imread(os.path.join(self.path, self.files[self.cur_file])))
+            self.image = img2np(cv2.copyMakeBorder(self.orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
+                                                   right=self.size[0], borderType=cv2.BORDER_DEFAULT))
 
         x, y, p = self.raw[filename][self.index]
-        if x < 0 or y < 0 or x > self.orig.shape[0] or y > self.orig.shape[1]:
-            return self.next()
+        self.x = x
+        self.y = y
+        self.p = p
         return patch_at(self.image, x, y, self.size), p
 
 
@@ -423,15 +417,24 @@ def csv2np(path):
             else:
                 targets = np.asarray([])
     except IOError:
-        targets = np.array([])
+        TT.warn("IO ERROR")
+        targets = np.asarray([])
     return targets
 
 
 def normalize(arr):
-    arr = arr.astype('float32')
+    arr = np.asarray(arr, dtype=np.float64)
     if arr.max() > 1.0:
         arr /= 255.0
     return arr
+
+
+def np2img(arr):
+    return arr.transpose(1, 2, 0)
+
+
+def img2np(arr):
+    return arr.transpose(2, 0, 1)
 
 
 def _test_image_iterator():
@@ -442,7 +445,7 @@ def _test_image_iterator():
 
     for i_itr in itr:
         print i_itr[0].shape
-        plt.imshow(i_itr[0].transpose(1, 2, 0))
+        plt.imshow(np2img(i_itr[0]))
         plt.show()
 
 
@@ -462,11 +465,11 @@ def _test_csv_np():
 def _test_patch_at():
     size = (101, 101)
     orig = cv2.imread(os.path.abspath('tests/patch_at/test.tiff'))
-    image = cv2.copyMakeBorder(orig, top=size[1], bottom=size[1], left=size[0], right=size[0],
-                               borderType=cv2.BORDER_DEFAULT).transpose(2, 0, 1)
-    patch_0_0 = cv2.imread(os.path.abspath('tests/patch_at/patch_0_0.tiff')).transpose(2, 0, 1)
-    patch_300_500 = cv2.imread(os.path.abspath('tests/patch_at/patch_300_500.tiff')).transpose(2, 0, 1)
-    patch_500_300 = cv2.imread(os.path.abspath('tests/patch_at/patch_500_300.tiff')).transpose(2, 0, 1)
+    image = img2np(cv2.copyMakeBorder(orig, top=size[1], bottom=size[1], left=size[0], right=size[0],
+                                      borderType=cv2.BORDER_DEFAULT))
+    patch_0_0 = img2np(cv2.imread(os.path.abspath('tests/patch_at/patch_0_0.tiff')))
+    patch_300_500 = img2np(cv2.imread(os.path.abspath('tests/patch_at/patch_300_500.tiff')))
+    patch_500_300 = img2np(cv2.imread(os.path.abspath('tests/patch_at/patch_500_300.tiff')))
     pixels = [(51, 51), (351, 551), (551, 351)]
     outputs = (patch_0_0, patch_300_500, patch_500_300)
     for (x, y), expected in zip(pixels, outputs):
@@ -480,16 +483,68 @@ def _test_patch_at():
             import pylab
             f = pylab.figure()
             f.add_subplot(3, 1, 1)
-            pylab.imshow(actual.transpose(1, 2, 0))
+            pylab.imshow(np2img(actual))
             f.add_subplot(3, 1, 2)
-            pylab.imshow(expected.transpose(1, 2, 0))
+            pylab.imshow(np2img(expected))
             f.add_subplot(3, 1, 3)
             diff = expected - actual
-            pylab.imshow(diff.transpose(1, 2, 0))
+            pylab.imshow(np2img(diff))
             from scipy.linalg import norm
             print "Norms: ", np.sum(np.abs(diff)), norm(diff.ravel(), 0)
             pylab.show()
 
+
+def _test_json_iterator():
+    sampler = RandomSampler(os.path.abspath('training_aperio'))
+    iterable_dataset = JsonIterator(sampler.dataset(1.0), path=os.path.abspath('training_aperio'))
+    import matplotlib.pyplot as plt
+    from matplotlib import gridspec
+    old = None
+    plt.gca().invert_yaxis()
+    gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
+    for img, _ in iterable_dataset:
+        plt.subplot(gs[1])
+        if iterable_dataset.p[0] > .5:
+            plt.imshow(np2img(img))
+        plt.subplot(gs[0])
+        cur = iterable_dataset.cur_file
+        if cur != old:
+            print iterable_dataset.files[cur]
+            plt.imshow(iterable_dataset.orig)
+            plt.show()
+        marker = 'ro'
+        if iterable_dataset.p[0] > .5:
+            marker = 'yo'
+        plt.plot([iterable_dataset.y], [iterable_dataset.x], marker)
+        if iterable_dataset.p[0] > .5:
+            print "at %d, %d with %f" % (iterable_dataset.x, iterable_dataset.y, iterable_dataset.p[0])
+        old = cur
+
+
+def _create_dataset():
+    sampler = RandomSampler(os.path.abspath('training_aperio'))
+    iterable_dataset = JsonIterator(sampler.dataset(2.0), path=os.path.abspath('training_aperio'))
+    count = 0
+    path = os.path.abspath('training_aperio/dataset/')
+    gen = BatchGenerator(iterable_dataset, 1000)
+    for batch, target in gen:
+        filename = os.path.join(path, str(count))
+        TT.info("Saving data to", filename + '_data.npy')
+        np.save(filename + '_data.npy', batch)
+        TT.info("Saving labels to", filename + '_label.npy')
+        np.save(filename + '_label.npy', target)
+        count += 1
+        TT.info("Batch", count, "of", len(gen), "created.")
+    TT.success("Finished.")
+
 if __name__ == '__main__':
-    _test_csv_np()
-    _test_patch_at()
+    import sys
+    if len(sys.argv) == 2:
+        _test_csv_np()
+        _test_patch_at()
+        TT.success('All tests completed.')
+    elif len(sys.argv) == 3:
+        TT.info('Interactive tests:')
+        _test_json_iterator()
+    else:
+        _create_dataset()

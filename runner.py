@@ -22,9 +22,7 @@ def _task_train_filter(arguments):
     assert len(glob.glob(os.path.join(path, '*/mitosis'))), "No valid mitosis dataset provided."
 
     # 2. Get all positive data.
-    dataset = RandomSampler(path, verbose=arguments.verbose)
-    positive, n_positive = dataset.positive()
-    n_positive = min(n_positive, 10000000)
+    dataset = JsonIterator(RandomSampler(path, verbose=arguments.verbose).dataset(), path=path)
 
     # 3. Compile model
     if arguments.verbose:
@@ -63,22 +61,19 @@ def _task_train_filter(arguments):
 
     # 7. Start training epoch
     train_start = time.time()
-    sample, n_sample = dataset.sample(n_positive)
+    # 7.1. Create mini batches that fit in RAM.
+    batches = BatchGenerator(dataset, arguments.batch)
     for epoch in xrange(n_epoch):
         epoch_start = time.time()
-        # 7.1. Get a randomly sampled batch.
-        #sample, n_sample = dataset.sample(n_positive)
         if arguments.verbose:
             TT.info("> Training on sample dataset %d of %d" % (epoch + 1, n_epoch))
-        # 7.2. Create mini batches that fit in RAM.
-        batches = BatchGenerator(JsonIterator(positive), n_positive, JsonIterator(sample), n_sample, arguments.batch)
-        # 7.3. Train on each batch.
+        # 7.2. Train on each batch.
         for (x, y) in batches:
             y[y > 0] = 1.0
             model.fit(x, y, batch_size=arguments.mini_batch, nb_epoch=1, validation_split=val_split,
                       callbacks=callbacks, show_accuracy=True)
             time.sleep(0.0001)
-        # 7.4. Save weights after each epoch.
+        # 7.3. Save weights after each epoch.
         model.save_weights(load_path, True)
         TT.success(
             "> Finished sample dataset %d of %d took %.2f minutes." % (
@@ -102,8 +97,6 @@ def _task_train(arguments):
     # Init Random Sampler
     dataset = RandomSampler(path, verbose=arguments.verbose)
 
-    positive, n_positive = dataset.positive()
-
     if arguments.verbose:
         print TT.info("> Compiling model...")
     from mitosis import model_base, model_1, model_2
@@ -115,11 +108,11 @@ def _task_train(arguments):
         print TT.success("> Loading base model from %s" % load_path)
         model.load_weights(load_path)
     if os.path.exists(load_path1):
-	print TT.success("> Laoding model1 from %s" % load_path1)
-	model1.load_weights(load_path1)
+        print TT.success("> Loading model1 from %s" % load_path1)
+        model1.load_weights(load_path1)
     if os.path.exists(load_path2):
-	print TT.success("> Loading model2 from %s" % load_path2)
-	model2.load_weights(load_path2)
+        print TT.success("> Loading model2 from %s" % load_path2)
+        model2.load_weights(load_path2)
     n_epoch = arguments.epoch
 
     def save_weights(_1, _2):
@@ -147,18 +140,17 @@ def _task_train(arguments):
     for epoch in xrange(n_epoch):
         epoch_start = time.time()
         print TT.info("> Epoch %d of %d" % (epoch + 1, n_epoch))
-        sample, n_sample = dataset.sample(n_positive)
-        batch = BatchGenerator(JsonIterator(positive), n_positive, JsonIterator(sample), n_sample, arguments.batch)
+        batch = BatchGenerator(dataset.dataset(), arguments.batch)
         for X_train, Y_train in batch:
             outputs = model.predict(X_train, batch_size=arguments.mini_batch, verbose=1)
             # Multiply each window with it's prediction and then pass it to the next layer
             for i in range(len(outputs)):
                 X_train[i] = np.dot(X_train[i], outputs[i][0])
 
-	    print 'Training model1 :'
+            print 'Training model1 :'
             model1.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
                        validation_split=val_split, callbacks=callbacks, show_accuracy=True)
-	    print 'Training model2 :'
+            print 'Training model2 :'
             model2.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
                        validation_split=val_split, callbacks=callbacks, show_accuracy=True)
 
@@ -189,11 +181,11 @@ def _task_test(arguments):
         print TT.success("> Loading base model from %s" % load_path)
         model.load_weights(load_path)
     if os.path.exists(load_path1):
-    	print TT.success("> Laoding model1 from %s" % load_path1)
-    	model1.load_weights(load_path1)
+        print TT.success("> Loading model1 from %s" % load_path1)
+        model1.load_weights(load_path1)
     if os.path.exists(load_path2):
-    	print TT.success("> Loading model2 from %s" % load_path2)
-    	model2.load_weights(load_path2)
+        print TT.success("> Loading model2 from %s" % load_path2)
+        model2.load_weights(load_path2)
     test_data = ImageIterator(arguments.input, arguments.output, arguments.batch)
     # import matplotlib.pyplot as plt
     # plt.imshow(test_data.output, cmap='Greys')
@@ -203,23 +195,24 @@ def _task_test(arguments):
     i = 0
     for X, Y in test_data:
         print i
-        i = i + 1
+        i += 1
         tmp = model.predict(X, verbose=1)
         out = append(out, tmp)
         tmp = model1.predict(X, batch_size=arguments.mini_batch, verbose=1)
         out1 = append(out1, tmp)
         tmp = model2.predict(X, batch_size=arguments.mini_batch, verbose=1)
         out2 = append(out2, tmp)
-    base_out = np.reshape(out[:,0], test_data.image_size, order='C')
-    model1_out = np.reshape(out1[:,0], test_data.image_size, order='C')
-    model2_out = np.reshape(out2[:,0], test_data.image_size, order='C')
-    import scipy
+    base_out = np.reshape(out[:, 0], test_data.image_size, order='C')
+    model1_out = np.reshape(out1[:, 0], test_data.image_size, order='C')
+    model2_out = np.reshape(out2[:, 0], test_data.image_size, order='C')
+    import scipy.misc
     np.save('base_out.npy', base_out)
     np.save('model1_out.npy', model1_out)
     np.save('model2_out.npy', model2_out)
     scipy.misc.imsave('base_out.jpg', base_out)
     scipy.misc.imsave('model1_out.jpg', model1_out)
     scipy.misc.imsave('model2_out.jpg', model2_out)
+
 
 def _task_test_base(arguments):
     path = arguments.path
@@ -249,21 +242,23 @@ def _task_test_base(arguments):
         tmp = model.predict(X, verbose=1)
         out = append(out, tmp)
 
-    base_out = np.reshape(out[:,0], test_data.image_size, order='C')
+    base_out = np.reshape(out[:, 0], test_data.image_size, order='C')
     import scipy
     np.save('base_out.npy', base_out)
     scipy.misc.imsave('base_out.jpg', base_out)
-    
+
+
 def append(src, dst):
     dst = np.asarray(dst)
     if src is None:
         return dst
     return np.concatenate((src, dst))
 
+
 def _parse_args():
     stub = argparse.ArgumentParser(description="Mitosis Detection Task Runner")
     stub.add_argument("task", help="Run task. (train-filter, train, test, predict)",
-                      choices=['train-filter', 'train', 'test', 'predict','train-cnn', 'test-base'], metavar="task")
+                      choices=['train-filter', 'train', 'test', 'predict', 'train-cnn', 'test-base'], metavar="task")
     stub.add_argument("path", type=str, help="Directory containing mitosis images", metavar="path")
     stub.add_argument("--epoch", type=int, help="Number of epochs. (Default: 1)", default=1)
     stub.add_argument("--batch", type=int, help="Size of batch fits in memory. (Default: 1000)", default=1000)
@@ -305,10 +300,10 @@ def main():
     try:
         if args.task == 'train-filter':
             _task_train_filter(args)
-    	elif args.task == 'train-cnn':
-    	    _task_train(args)
+        elif args.task == 'train-cnn':
+            _task_train(args)
         elif args.task == 'test':
-    	    _task_test(args)
+            _task_test(args)
         elif args.task == 'test-base':
             _task_test_base(args)
         else:
