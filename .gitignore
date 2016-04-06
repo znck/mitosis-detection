@@ -1,6 +1,9 @@
 testing_*/
 training_*/
 validating_*/
+*.tiff
+*.npy
+*.json
 
 # Created by https://www.gitignore.io/api/python,linux,osx,pycharm,atom
 
@@ -88,7 +91,8 @@ target/
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*

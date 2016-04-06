@@ -87,7 +87,7 @@ class RandomSampler(object):
         self.positives_count = 0
         self.verbose = verbose
         self.radius = 10
-        self.ratio = 1.
+        self.ratio = ratio
 
     def __len__(self):
         if self.files is None:
@@ -114,8 +114,6 @@ class RandomSampler(object):
                 neg[index] = pos[index]
             else:
                 neg[index] += pos[index]
-        for index in neg:
-            neg[index] = sorted(neg[index])
         self.sampled_dataset = neg
         TT.info("> %d positive and %d negative." % (pos_c, neg_c))
         self.dataset_size = pos_c + neg_c
@@ -157,7 +155,7 @@ class RandomSampler(object):
             else:
                 p = 0.
             (x, y) = self.pixel_to_xy(pixel)
-            sampled[image].append([x, y, (p, 1. - p)])
+            sampled[image].append([x, y, p])
             count += 1
             if self.verbose:
                 bar.update(count)
@@ -212,7 +210,7 @@ class RandomSampler(object):
             expanded[data_image] = {}  # Initialize list for file
             normal[data_image] = []
             total += len(labels)
-            for (x, y, p) in labels:  # Iterate over annotated pixel values.
+            for (y, x, p) in labels:  # Iterate over annotated pixel values.
                 x = int(x)
                 y = int(y)
                 p = max(set_positive, float(p))
@@ -224,7 +222,7 @@ class RandomSampler(object):
                 for i in range_x:
                     for j in range_y:
                         expanded[data_image][i * self.image_size[0] + j] = p  # TODO: Verify this. `x * width + y`
-                        normal[data_image].append([i, j, (p, 1. - p)])  # (x, y) => (row, column)
+                        normal[data_image].append([i, j, p])  # (x, y) => (row, column)
                         count += 1
             index += 1
             if self.verbose:
@@ -297,7 +295,7 @@ class BatchGenerator(object):
         start = time.clock()
         for x, y in self.dataset:
             data_x, pool_x = append(data_x, pool_x, x)
-            data_y, pool_y = append(data_y, pool_y, np.asarray(y, dtype=np.float64))
+            data_y, pool_y = append(data_y, pool_y, (y, 1-y))
             count += 1
             if count >= self.batch_size:
                 data_x, pool_x = append(data_x, pool_x, None)
@@ -317,6 +315,7 @@ class BatchGenerator(object):
 
 class ImageIterator(object):
     def __init__(self, input_file, output=None, batch=1, size=(101, 101)):
+        self.input_file = input_file
         orig = normalize(cv2.imread(input_file))
         self.size = size
         self.radius = 10
@@ -368,7 +367,7 @@ class JsonIterator(object):
         self.len = raw[1]
         self.raw = raw[0]
         TT.info("> %d images to be iterated." % self.len)
-        self.files = sorted(self.raw.keys())
+        self.files = self.raw.keys()
         self.x = self.y = self.p = None  # Store state of current pixel.
         self.cur_file = 0
         self.index = 0
@@ -390,7 +389,7 @@ class JsonIterator(object):
             self.image = img2np(cv2.copyMakeBorder(self.orig, top=self.size[1], bottom=self.size[1], left=self.size[0],
                                                    right=self.size[0], borderType=cv2.BORDER_DEFAULT))
             for index in xrange(len(self.raw[filename])):
-                x, y, p = self.raw[filename][self.index]
+                x, y, p = self.raw[filename][index]
                 yield patch_at(self.image, x, y, self.size), p
 
 
@@ -403,6 +402,7 @@ def patch_at(image, x, y, size=(101, 101)):
     :param size: dimensions of patch
     :return:
     """
+    orig_x, orig_y = x, y
     x += (size[1]) / 2
     y += (size[0]) / 2
     return image[:, x:x + size[1], y:y + size[0]]
