@@ -95,7 +95,7 @@ def _task_train(arguments):
         load_path = os.path.abspath(arguments.model)  # What's this
 
     # Init Random Sampler
-    dataset = RandomSampler(path, verbose=arguments.verbose)
+    dataset = JsonIterator(RandomSampler(path, verbose=arguments.verbose), path=path)
 
     if arguments.verbose:
         print TT.info("> Compiling model...")
@@ -137,10 +137,10 @@ def _task_train(arguments):
     # if arguments.visualize:
     #     vis = VisHistory((1, 3, 5))
     #     callbacks.append(vis)
+    batch = BatchGenerator(dataset, arguments.batch)
     for epoch in xrange(n_epoch):
         epoch_start = time.time()
         print TT.info("> Epoch %d of %d" % (epoch + 1, n_epoch))
-        batch = BatchGenerator(dataset.dataset(), arguments.batch)
         for X_train, Y_train in batch:
             outputs = model.predict(X_train, batch_size=arguments.mini_batch, verbose=1)
             # Multiply each window with it's prediction and then pass it to the next layer
