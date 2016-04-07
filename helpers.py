@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import time
 from keras.utils.generic_utils import Progbar
+import random
 
 
 class TT:
@@ -383,6 +384,8 @@ class JsonIterator(object):
         return self.generator()
 
     def generator(self):
+        # Shuffle Files.
+        random.shuffle(self.files)  # Shuffle files in every epoch
         for cur_file in xrange(len(self.files)):
             filename = self.files[cur_file]
             self.orig = normalize(cv2.imread(os.path.join(self.path, self.files[self.cur_file])))
