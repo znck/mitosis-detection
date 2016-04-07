@@ -153,11 +153,7 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
     datasets = cPickle.load(f)
     f.close()
 
-    datasets = load_data(dataset)
-
-    train_set_x, train_set_y = datasets[0]
-    valid_set_x, valid_set_y = datasets[1]
-    test_set_x, test_set_y = datasets[2]
+    [(train_set_x, train_set_y), (valid_set_x, valid_set_y), (test_set_x, test_set_y)] = load_data(dataset)
 
     # compute number of minibatches for training, validation and testing
     n_train_batches = train_set_x.get_value(borrow=True).shape[0]

@@ -213,6 +213,10 @@ def load_data(dataset):
         # lets ous get around this issue
         return shared_x, T.cast(shared_y, 'int32')
 
+    valid_set = [train_set[0][-10000:,...].reshape([10000, 28*28]), train_set[1][-10000:,...]] 
+    train_set = [train_set[0][:-10000,...].reshape([50000, 28*28]), train_set[1][:-10000,...]]
+    test_set = [test_set[0].reshape([10000, 28*28]), test_set[1]]
+    
     test_set_x, test_set_y = shared_dataset(test_set)
     valid_set_x, valid_set_y = shared_dataset(valid_set)
     train_set_x, train_set_y = shared_dataset(train_set)
