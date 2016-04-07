@@ -74,7 +74,7 @@ class RandomSampler(object):
         """
         self.path = path  # Root directory
         self.files = None  # List of all dataset files
-        self.image_size = image_size  # Size of image. TODO: It can be auto detected.
+        self.image_size = image_size  # Size of image. (width, height) TODO: It can be auto detected.
         self.patch_size = patch_size  # Size of patch. Input size of DNN
         self.pixels_per_image = np.prod(image_size)
         self.i = 0
@@ -210,7 +210,7 @@ class RandomSampler(object):
             expanded[data_image] = {}  # Initialize list for file
             normal[data_image] = []
             total += len(labels)
-            for (y, x, p) in labels:  # Iterate over annotated pixel values.
+            for (y, x, p) in labels:  # Iterate over annotated pixel values. CSV format: width,height,probability
                 x = int(x)
                 y = int(y)
                 p = max(set_positive, float(p))
@@ -265,7 +265,7 @@ class BatchGenerator(object):
         self.n = int(len(dataset) / batch_size)
         if abs(float(self.n) - (float(len(dataset)) / batch_size)) > 0.00001:
             TT.warn("> Batch size is not exact multiple. Some images might be truncated.")
-        self.i = 0
+        self.i = 1
         self.batch_size = batch_size
 
     def __iter__(self):
@@ -292,6 +292,7 @@ class BatchGenerator(object):
         pool_x = []
         pool_y = []
         count = 0
+        self.i = 0
         start = time.clock()
         for x, y in self.dataset:
             data_x, pool_x = append(data_x, pool_x, x)
@@ -324,9 +325,8 @@ class ImageIterator(object):
                                                right=self.size[0], borderType=cv2.BORDER_DEFAULT))
         self.output = np.zeros(self.image_size)
         if output is not None:
-            v = csv2np(output)
-            for pos in v:
-                (x, y, p) = pos
+            labels = csv2np(output)
+            for (y, x, p) in labels:
                 x = int(x)
                 y = int(y)
                 p = float(p)
@@ -402,7 +402,6 @@ def patch_at(image, x, y, size=(101, 101)):
     :param size: dimensions of patch
     :return:
     """
-    orig_x, orig_y = x, y
     x += (size[1]) / 2
     y += (size[0]) / 2
     return image[:, x:x + size[1], y:y + size[0]]
@@ -497,7 +496,7 @@ def _test_patch_at():
             pylab.show()
 
 
-def _test_json_iterator():
+def _test_labels_are_correctly_loaded():
     sampler = RandomSampler(os.path.abspath('training_aperio'))
     iterable_dataset = JsonIterator(sampler.dataset(1.0), path=os.path.abspath('training_aperio'))
     import matplotlib.pyplot as plt
@@ -550,6 +549,6 @@ if __name__ == '__main__':
         TT.success('All tests completed.')
     elif len(sys.argv) == 3:
         TT.info('Interactive tests:')
-        _test_json_iterator()
+        _test_labels_are_correctly_loaded()
     else:
         _create_dataset()
