@@ -121,7 +121,7 @@ def _task_train(arguments):
         dying_path2 = load_path2 + '.dying.npy'
 
         print TT.danger('Program Terminated. Saving progressing in %s' % dying_path)
-        model.save_weights(dying_path, True)
+        #model.save_weights(dying_path, True)
         model1.save_weights(dying_path1, True)
         model2.save_weights(dying_path2, True)
         exit(0)
@@ -155,7 +155,7 @@ def _task_train(arguments):
             model2.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
                        validation_split=val_split, callbacks=callbacks, show_accuracy=True)
 
-        model.save_weights(load_path, True)
+       # model.save_weights(load_path, True)
         model1.save_weights(load_path1, True)
         model2.save_weights(load_path2, True)
         print TT.success("> Epoch %d of %d took %.2f seconds." % (
