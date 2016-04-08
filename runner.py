@@ -95,7 +95,7 @@ def _task_train(arguments):
         load_path = os.path.abspath(arguments.model)  # What's this
 
     # Init Random Sampler
-    dataset = JsonIterator(RandomSampler(path, verbose=arguments.verbose), path=path)
+    dataset = JsonIterator(RandomSampler(path, verbose=arguments.verbose).dataset(ratio=9), path=path)
 
     if arguments.verbose:
         print TT.info("> Compiling model...")
@@ -145,7 +145,8 @@ def _task_train(arguments):
             outputs = model.predict(X_train, batch_size=arguments.mini_batch, verbose=1)
             # Multiply each window with it's prediction and then pass it to the next layer
             for i in range(len(outputs)):
-                X_train[i] = np.dot(X_train[i], outputs[i][0])
+                if Y_train[i][0] is not 1:
+                   X_train[i] = np.dot(X_train[i], outputs[i][0])
 
             print 'Training model1 :'
             model1.fit(X_train, Y_train, batch_size=arguments.mini_batch, nb_epoch=1, shuffle=True,
