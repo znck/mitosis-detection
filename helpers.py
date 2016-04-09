@@ -218,8 +218,8 @@ class RandomSampler(object):
                 # Image position, horizontal -> y, vertical -> x
                 # Image size, (y, x)
                 # @see http://www.scipy-lectures.org/advanced/image_processing/#basic-manipulations
-                range_x = xrange(max(0, x - self.radius), min(x + self.radius, self.image_size[1]))
-                range_y = xrange(max(0, y - self.radius), min(y + self.radius, self.image_size[0]))
+                range_x = xrange(max(0, x - self.radius), min(x + self.radius, self.image_size[0]))
+                range_y = xrange(max(0, y - self.radius), min(y + self.radius, self.image_size[1]))
                 for i in range_x:
                     for j in range_y:
                         expanded[data_image][i * self.image_size[0] + j] = p  # TODO: Verify this. `x * width + y`
@@ -331,11 +331,11 @@ class ImageIterator(object):
                 x = int(x)
                 y = int(y)
                 p = float(p)
-                range_x = xrange(max(0, x - self.radius), min(x + self.radius, self.image_size[1]))
-                range_y = xrange(max(0, y - self.radius), min(y + self.radius, self.image_size[0]))
+                range_x = xrange(max(0, x - self.radius), min(x + self.radius, self.image_size[0]))
+                range_y = xrange(max(0, y - self.radius), min(y + self.radius, self.image_size[1]))
                 for i in range_x:
                     for j in range_y:
-                        self.output[i, j] = p
+                        self.output[i, j] = 1
         self.i = 0
         self.len = np.prod(self.image_size)
         self.batch = batch
