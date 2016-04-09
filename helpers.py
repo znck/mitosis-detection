@@ -69,13 +69,13 @@ class RandomSampler(object):
                 > .csv target annotations
     """
 
-    def __init__(self, path, image_size=(1376, 1539), patch_size=(101, 101), verbose=True, ratio=1.):
+    def __init__(self, path, image_size=(1376, 1539), patch_size=(101, 101), verbose=True, ratio=1., filename='dataset'):
         """
         Samples all the positive pixels or given no. of random pixels from all the images in a path.
         """
         self.path = path  # Root directory
         self.files = None  # List of all dataset files
-        self.image_size = image_size  # Size of image. (width, height) TODO: It can be auto detected.
+        self.given_image_size = image_size  # Size of image. (width, height) TODO: It can be auto detected.
         self.patch_size = patch_size  # Size of patch. Input size of DNN
         self.pixels_per_image = np.prod(image_size)
         self.i = 0
@@ -89,6 +89,11 @@ class RandomSampler(object):
         self.verbose = verbose
         self.radius = 10
         self.ratio = ratio
+	self.filename = filename
+
+    def image_size(self):
+        if self.given_image_size is not None:
+	    return self.given_image_size
 
     def __len__(self):
         if self.files is None:
@@ -103,8 +108,8 @@ class RandomSampler(object):
         if self.sampled_dataset is not None:
             return self.sampled_dataset, self.dataset_size
 
-        if os.path.exists(os.path.join(self.path, 'dataset.json')):
-            dataset = json.load(open(os.path.join(self.path, 'dataset.json')))
+        if os.path.exists(os.path.join(self.path, self.filename + '.json')):
+            dataset = json.load(open(os.path.join(self.path, self.filename + '.json')))
             return dataset['data'], int(dataset['size'])
         if ratio is None:
             ratio = self.ratio
@@ -118,8 +123,8 @@ class RandomSampler(object):
         self.sampled_dataset = neg
         TT.info("> %d positive and %d negative." % (pos_c, neg_c))
         self.dataset_size = pos_c + neg_c
-        json.dump({'data': self.sampled_dataset, 'size': self.dataset_size},
-                  open(os.path.join(self.path, 'dataset.json'), 'w'))
+        json.dump({'data': self.sampled_dataset, 'size': self.dataset_size, 'positive': pos_c, 'negative': neg_c},
+                  open(os.path.join(self.path, self.filename + '.json'), 'w'))
         return self.sampled_dataset, self.dataset_size
 
     def sample(self, batch_size=100):
@@ -127,8 +132,6 @@ class RandomSampler(object):
             return self.sampled, batch_size
 
         self.batch = batch_size
-
-        self.positive()
 
         if self.verbose:
             TT.info("> Creating a random dataset...")
@@ -173,13 +176,7 @@ class RandomSampler(object):
         if self.positives_sorted is not None:
             return self.positives_sorted
 
-        if os.path.exists(os.path.join(self.path, 'positives_sorted.json')):
-            return json.load(open(os.path.join(self.path, 'positives_sorted.json')))
-
         self.positive()
-
-        if not os.path.exists(os.path.join(self.path, 'positives_sorted.json')):
-            json.dump(self.positives_sorted, open(os.path.join(self.path, 'positives_sorted.json'), 'w'))
 
         return self.positives_sorted
 
