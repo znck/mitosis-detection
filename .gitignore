@@ -4,7 +4,7 @@ validating_*/
 *.tiff
 *.npy
 *.json
-
+*.csv
 # Created by https://www.gitignore.io/api/python,linux,osx,pycharm,atom
 
 ### Python ###
