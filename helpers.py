@@ -244,9 +244,9 @@ def read_all_files(path):
         valid_filename = re.compile('\.bmp$')
         for name in os.listdir(os.path.join(path, directory)):  # Changed a line here, removed frames/x40
             # Append image and csv relative paths.
-            os.path.join(directory, name)
-            if valid_filename.match(path):
-                files.append((path, path.replace('.bmp', '.csv')))
+            filename = os.path.join(directory, name)
+            if valid_filename.match(filename):
+                files.append((filename, filename.replace('.bmp', '.csv')))
     return files
 
 
@@ -410,6 +410,7 @@ def patch_at(image, x, y, size=(101, 101)):
 
 
 def csv2np(path):
+    TT.danger(path)
     result = []
     line_number = 1
     csv_type = None
