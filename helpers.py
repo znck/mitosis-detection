@@ -426,6 +426,7 @@ def csv2np(path):
             points = map(lambda x: float(x), line.strip().split(','))
         except ValueError:
             TT.warn("Line %d in %s has invalid value." % (line_number, path))
+            continue
         # Detect format of csv. csv_type ∈ {1, 2}
         # 1: Format (y, x, p)
         # 2: Format (y, x), (y, x) ...
