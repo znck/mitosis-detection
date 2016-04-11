@@ -69,7 +69,7 @@ class RandomSampler(object):
                 > .csv target annotations
     """
 
-    def __init__(self, path, image_size=(1376, 1539), patch_size=(101, 101), verbose=True, ratio=1., filename='dataset'):
+    def __init__(self, path, image_size=(2084, 2084), patch_size=(101, 101), verbose=True, ratio=1., filename='dataset'):
         """
         Samples all the positive pixels or given no. of random pixels from all the images in a path.
         """
@@ -109,7 +109,7 @@ class RandomSampler(object):
             return self.sampled_dataset, self.dataset_size
 
         if os.path.exists(os.path.join(self.path, self.filename + '.json')):
-            dataset = json.load(open(os.path.join(self.path, self.filename + '.json')))
+            dataset = json.load(open(os.path.join(self.path, self.filename + '.json')))  #filename is dataset
             return dataset['data'], int(dataset['size'])
         if ratio is None:
             ratio = self.ratio
@@ -238,12 +238,12 @@ def read_all_files(path):
         if not os.path.isdir(os.path.join(path, directory)):  # Check if it is directory.
             continue
         # Get everything in directory.
-        for name in os.listdir(os.path.join(os.path.join(path, directory), 'frames/x40/')):
+        for name in os.listdir(os.path.join(path, directory)):  # Changed a line here, removed frames/x40
             # Append image and csv relative paths.
             files.append(
                 (
-                    os.path.join(directory, 'frames/x40/' + name),
-                    os.path.join(directory, 'mitosis/' + name.replace('.tiff', '_mitosis.csv'))
+                    os.path.join(directory, name),  
+                    os.path.join(directory, name.replace('.bmp', '.csv'))
                 )
             )
     files.sort()  # Sort list of files.
