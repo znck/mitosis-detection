@@ -2,13 +2,12 @@
 import json
 import os
 import random
-import warnings
+import re
+import time
 
 import cv2
 import numpy as np
-import time
 from keras.utils.generic_utils import Progbar
-import random
 
 
 class TT:
@@ -214,7 +213,7 @@ class RandomSampler(object):
             for (y, x, p) in labels:  # Iterate over annotated pixel values. CSV format: width,height,probability
                 x = int(x)
                 y = int(y)
-                p = max(set_positive, float(p))
+                # p = max(set_positive, float(p))
                 # Image position, horizontal -> y, vertical -> x
                 # Image size, (y, x)
                 # @see http://www.scipy-lectures.org/advanced/image_processing/#basic-manipulations
@@ -242,15 +241,12 @@ def read_all_files(path):
         if not os.path.isdir(os.path.join(path, directory)):  # Check if it is directory.
             continue
         # Get everything in directory.
+        valid_filename = re.compile('\.bmp$')
         for name in os.listdir(os.path.join(path, directory)):  # Changed a line here, removed frames/x40
             # Append image and csv relative paths.
-            files.append(
-                (
-                    os.path.join(directory, name),
-                    os.path.join(directory, name.replace('.bmp', '.csv'))
-                )
-            )
-    files.sort()  # Sort list of files.
+            os.path.join(directory, name)
+            if valid_filename.match(path):
+                files.append((path, path.replace('.bmp', '.csv')))
     return files
 
 
