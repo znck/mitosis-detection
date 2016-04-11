@@ -241,7 +241,7 @@ def read_all_files(path):
         if not os.path.isdir(os.path.join(path, directory)):  # Check if it is directory.
             continue
         # Get everything in directory.
-        valid_filename = re.compile('\.bmp$')
+        valid_filename = re.compile(r'.*\.bmp$')
         for name in os.listdir(os.path.join(path, directory)):  # Changed a line here, removed frames/x40
             # Append image and csv relative paths.
             filename = os.path.join(directory, name)
