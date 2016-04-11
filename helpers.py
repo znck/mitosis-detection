@@ -427,7 +427,7 @@ def csv2np(path):
         assert len(points) % 2 == csv_type
         if csv_type == 0:
             # Convert (x, y) -> (x, y, line_number)
-            result += [points[i:i+1] + [line_number] for i in xrange(len(points), step=2)]
+            result += [[points[i], points[i+1], line_number] for i in xrange(0, len(points), 2)]
         else:
             result.append(points)
         line_number += 1
@@ -462,12 +462,13 @@ def _test_image_iterator():
 
 
 def _test_csv_np():
-    files = ['empty.csv', 'one.csv', 'two.csv', 'three.csv']
+    files = ['empty.csv', 'one.csv', 'two.csv', 'three.csv', 'points.csv']
     outputs = [
         [],
         ([1, 1, .5],),
         ([1, 1, .5], [2, 2, .5]),
-        ([1, 1, .5], [2, 2, .5], [3, 3, .5])
+        ([1, 1, .5], [2, 2, .5], [3, 3, .5]),
+        ([1, 2, 1], [4, 6, 1], [1, 2, 2], [1, 2, 3])
     ]
     for filename, output in zip(files, outputs):
         path = os.path.abspath(os.path.join('tests/csv2np', filename))
