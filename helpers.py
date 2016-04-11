@@ -218,13 +218,14 @@ class RandomSampler(object):
                 # Image position, horizontal -> y, vertical -> x
                 # Image size, (y, x)
                 # @see http://www.scipy-lectures.org/advanced/image_processing/#basic-manipulations
-                range_x = xrange(max(0, x - self.radius), min(x + self.radius, self.image_size[0]))
-                range_y = xrange(max(0, y - self.radius), min(y + self.radius, self.image_size[1]))
-                for i in range_x:
-                    for j in range_y:
-                        expanded[data_image][i * self.image_size[0] + j] = p  # TODO: Verify this. `x * width + y`
-                        normal[data_image].append([i, j, p])  # (x, y) => (row, column)
-                        count += 1
+                normal[data_image].append([x, y, 1])  # (x, y) => (row, column)
+                # range_x = xrange(max(0, x - self.radius), min(x + self.radius, self.image_size[0]))
+                # range_y = xrange(max(0, y - self.radius), min(y + self.radius, self.image_size[1]))
+                # for i in range_x:
+                #     for j in range_y:
+                #         expanded[data_image][i * self.image_size[0] + j] = p  # TODO: Verify this. `x * width + y`
+                #         normal[data_image].append([i, j, p])  # (x, y) => (row, column)
+                #         count += 1
             index += 1
             if self.verbose:
                 bar.update(index)
@@ -421,7 +422,10 @@ def csv2np(path):
         if len(line.strip()) == 0:
             continue
         # Parse line into list of numbers.
-        points = map(lambda x: float(x), line.strip().split(','))
+        try:
+            points = map(lambda x: float(x), line.strip().split(','))
+        except ValueError:
+            TT.warn("Line %d in %s has invalid value." % (line_number, path))
         # Detect format of csv. csv_type ∈ {1, 2}
         # 1: Format (y, x, p)
         # 2: Format (y, x), (y, x) ...
