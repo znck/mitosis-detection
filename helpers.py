@@ -1,3 +1,4 @@
+# coding=utf-8
 import json
 import os
 import random
@@ -408,20 +409,29 @@ def patch_at(image, x, y, size=(101, 101)):
 
 
 def csv2np(path):
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            targets = np.genfromtxt(path, delimiter=',')
-            if len(targets.shape) is 1 and len(targets) is 3:
-                targets = np.asarray([targets], dtype=np.float64)
-            elif len(targets.shape) is 2:
-                pass
-            else:
-                targets = np.asarray([])
-    except IOError:
-        TT.warn("IO ERROR")
-        targets = np.asarray([])
-    return targets
+    result = []
+    line_number = 1
+    csv_type = None
+    for line in open(path).readlines():
+        # Ignore empty lines.
+        if len(line.strip()) == 0:
+            continue
+        # Parse line into list of numbers.
+        points = map(lambda x: float(x), line.strip().split(','))
+        # Detect format of csv. csv_type ∈ {1, 2}
+        # 1: Format (y, x, p)
+        # 2: Format (y, x), (y, x) ...
+        if csv_type is None:
+            csv_type = len(points) % 2
+        # Check data is correct.
+        assert len(points) % 2 == csv_type
+        if csv_type == 0:
+            # Convert (x, y) -> (x, y, line_number)
+            result += [points[i:i+1] + [line_number] for i in xrange(len(points), step=2)]
+        else:
+            result.append(points)
+        line_number += 1
+    return np.asarray(result, dtype=np.float64)
 
 
 def normalize(arr):
