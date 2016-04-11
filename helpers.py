@@ -70,7 +70,8 @@ class RandomSampler(object):
                 > .csv target annotations
     """
 
-    def __init__(self, path, image_size=(2084, 2084), patch_size=(101, 101), verbose=True, ratio=1., filename='dataset'):
+    def __init__(self, path, image_size=(2084, 2084), patch_size=(101, 101), verbose=True, ratio=1.,
+                 filename='dataset'):
         """
         Samples all the positive pixels or given no. of random pixels from all the images in a path.
         """
@@ -90,11 +91,11 @@ class RandomSampler(object):
         self.verbose = verbose
         self.radius = 10
         self.ratio = ratio
-	self.filename = filename
+        self.filename = filename
 
     def image_size(self):
         if self.given_image_size is not None:
-	    return self.given_image_size
+            return self.given_image_size
 
     def __len__(self):
         if self.files is None:
@@ -110,7 +111,7 @@ class RandomSampler(object):
             return self.sampled_dataset, self.dataset_size
 
         if os.path.exists(os.path.join(self.path, self.filename + '.json')):
-            dataset = json.load(open(os.path.join(self.path, self.filename + '.json')))  #filename is dataset
+            dataset = json.load(open(os.path.join(self.path, self.filename + '.json')))  # filename is dataset
             return dataset['data'], int(dataset['size'])
         if ratio is None:
             ratio = self.ratio
@@ -243,7 +244,7 @@ def read_all_files(path):
             # Append image and csv relative paths.
             files.append(
                 (
-                    os.path.join(directory, name),  
+                    os.path.join(directory, name),
                     os.path.join(directory, name.replace('.bmp', '.csv'))
                 )
             )
@@ -284,6 +285,7 @@ class BatchGenerator(object):
             if len(pool):
                 return np.concatenate((dst, pool)), []
             return dst, []
+
         if self.verbose:
             TT.warn("> Creating batch %d of %d" % (self.i, self.n))
         data_x = None
@@ -295,13 +297,14 @@ class BatchGenerator(object):
         start = time.clock()
         for x, y in self.dataset:
             data_x, pool_x = append(data_x, pool_x, x)
-            data_y, pool_y = append(data_y, pool_y, (y, 1-y))
+            data_y, pool_y = append(data_y, pool_y, (y, 1 - y))
             count += 1
             if count >= self.batch_size:
                 data_x, pool_x = append(data_x, pool_x, None)
                 data_y, pool_y = append(data_y, pool_y, None)
                 if self.verbose:
-                    TT.info("> Completed in", time.clock() - start, "seconds. This batch has", int(np.sum(data_y[:, 0])),
+                    TT.info("> Completed in", time.clock() - start, "seconds. This batch has",
+                            int(np.sum(data_y[:, 0])),
                             "positive pixels and", int(np.sum(data_y[:, 1])), "negative pixels.")
                 yield data_x, data_y
                 if self.verbose:
@@ -427,7 +430,7 @@ def csv2np(path):
         assert len(points) % 2 == csv_type
         if csv_type == 0:
             # Convert (x, y) -> (x, y, line_number)
-            result += [[points[i], points[i+1], line_number] for i in xrange(0, len(points), 2)]
+            result += [[points[i], points[i + 1], line_number] for i in xrange(0, len(points), 2)]
         else:
             result.append(points)
         line_number += 1

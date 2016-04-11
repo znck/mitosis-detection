@@ -19,7 +19,7 @@ def _task_train_filter(arguments):
     path = arguments.path
     assert os.path.exists(path), path + " does not exists"
     path = os.path.abspath(path)
-    assert len(glob.glob(os.path.join(path, '*/mitosis'))), "No valid mitosis dataset provided."
+    # assert len(glob.glob(os.path.join(path, '*/mitosis'))), "No valid mitosis dataset provided."
 
     # 2. Get all positive data.
     dataset = JsonIterator(RandomSampler(path, verbose=arguments.verbose).dataset(), path=path)
@@ -86,7 +86,7 @@ def _task_train(arguments):
     assert os.path.exists(path), path + " does not exists"
     path = os.path.abspath(path)
 
-    assert len(glob.glob(os.path.join(path, '*/mitosis'))), "No valid mitosis dataset provided."
+    # assert len(glob.glob(os.path.join(path, '*/mitosis'))), "No valid mitosis dataset provided."
 
     load_path = os.path.join(path, 'weights.npy')
     load_path1 = os.path.join(path, 'weights1.npy')
