@@ -32,6 +32,50 @@ def task_train_filter(args):
     TT.success("Training finished in %.2f hours." % ((time.time() - train_start) / 3600.))
 
 
+def task_train_cnn(args):
+    ff, mapper = getattr(__import__('dataset'), args.dataset)()
+    dataset = Dataset(root_path=args.path, verbose=args.verbose, name='base-model',
+                      mapper=mapper, filename_filter=ff, ratio=9)
+    dataset_batches = BatchGenerator(dataset, args.batch)
+    from mitosis import model_base, model_1, model_2
+
+    model = model_base(lr=0)
+    model1 = model_1(args.lr)
+    model2 = model_2(args.lr)
+    model_saved_weights_path = os.path.join(args.path, 'base-model.weights.npy')
+    model1_saved_weights_path = os.path.join(args.path, 'model1.weights.npy')
+    model2_saved_weights_path = os.path.join(args.path, 'model2.weights.npy')
+    if os.path.exists(model_saved_weights_path):
+        TT.info("Loading weights from %s" % model_saved_weights_path)
+        model.load_weights(model_saved_weights_path)
+    if os.path.exists(model1_saved_weights_path):
+        TT.info("Loading weights from %s" % model1_saved_weights_path)
+        model1.load_weights(model1_saved_weights_path)
+    if os.path.exists(model2_saved_weights_path):
+        TT.info("Loading weights from %s" % model2_saved_weights_path)
+        model2.load_weights(model2_saved_weights_path)
+    train_start = time.time()
+    for epoch in xrange(args.epoch):
+        TT.debug(epoch + 1, "of", args.epoch, "epochs")
+        for x, y in dataset_batches:
+            outputs = model.predict(x, batch_size=args.mini_batch, verbose=args.verbose)
+            # Multiply each window with it's prediction and then pass it to the next layer
+            for i in range(len(outputs)):
+                if y[i][0] < 1.:
+                    x[i] = numpy.dot(x[i], outputs[i][0])
+            TT.debug("Model 1")
+            model1.fit(x, y, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
+                       callbacks=callbacks, show_accuracy=True, shuffle=True)
+            TT.debug("Model 2")
+            model2.fit(x, y, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
+                       callbacks=callbacks, show_accuracy=True, shuffle=True)
+        TT.info("Saving weights to %s" % model_saved_weights_path)
+        model.save_weights(model_saved_weights_path, overwrite=True)
+        model1.save_weights(model1_saved_weights_path, overwrite=True)
+        model2.save_weights(model2_saved_weights_path, overwrite=True)
+    TT.success("Training finished in %.2f hours." % ((time.time() - train_start) / 3600.))
+
+
 def task_test_filter(args):
     dataset = ImageIterator(args.input, args.output)
     dataset_batches = BatchGenerator(dataset, args.batch)
@@ -57,7 +101,8 @@ def task_test_filter(args):
 def parse_args():
     parser = argparse.ArgumentParser(description="Mitosis Detection Task Runner")
     parser.add_argument("task", help="Run task. (train-filter, train, test, predict)",
-                        choices=['train-filter', 'train', 'test', 'predict', 'train-cnn', 'test-filter'], metavar="task")
+                        choices=['train-filter', 'train', 'test', 'predict', 'train-cnn', 'test-filter'],
+                        metavar="task")
     parser.add_argument("path", type=str, help="Directory containing mitosis images", metavar="path")
     parser.add_argument("--epoch", type=int, help="Number of epochs. (Default: 10)", default=10)
     parser.add_argument("--batch", type=int, help="Size of batch fits in memory. (Default: 3000)", default=3000)
@@ -78,6 +123,9 @@ def main():
     if args.task == 'train-filter':
         TT.debug("Running: Task Train Filter")
         task_train_filter(args)
+    if args.task == 'train-cnn':
+        TT.debug("Running: Task Train CNN")
+        task_train_cnn(args)
     elif args.task == 'test-filter':
         TT.debug("Running: Task Test Filter")
         task_test_filter(args)
