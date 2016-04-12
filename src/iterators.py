@@ -13,7 +13,7 @@ from utilities import prepared_dataset_image, patch_centered_at, image_size, lis
 class BatchGenerator(object):
     def __init__(self, dataset, batch_size, pool_size=2000):
         """
-        :type dataset:Dataset
+        :type dataset:Dataset|ImageIterator
         :type batch_size:int
         :type pool_size:int
         """
@@ -23,7 +23,7 @@ class BatchGenerator(object):
         self.pool_size = pool_size
         self.n = int(len(dataset) / batch_size)
         if abs(self.n - (float(len(dataset)) / batch_size)) > 0.000001:
-            TT.warn("Batch size is not exact multiple.")
+            TT.warn("Batch size is not exact multiple of", len(dataset))
 
     def __len__(self):
         return self.n
@@ -154,7 +154,7 @@ class Dataset(object):
         TT.debug("Current dataset has", self._dataset_size, "images.",
                  self._positive_size, "positive and", self._sample_size, "negative.")
         json.dump({'data': self._dataset, 'size': self._dataset_size,
-                   'positive_size': self._dataset_size + self.positive_in_sample,
+                   'positive_size': self._positive_size + self.positive_in_sample,
                    'sample_size': self._sample_size - self.positive_in_sample},
                   open(self.dataset_store_path, 'w'))
 
@@ -235,3 +235,22 @@ class DatasetIterator(object):
             image = prepared_dataset_image(os.path.join(self.root_path, filename), border=self.patch_size)
             for (x, y, p) in self.dataset[filename]:
                 yield patch_centered_at(image, x, y, self.patch_size), p
+
+
+class ImageIterator(object):
+    def __init__(self, image_file, label_file, patch_size=(101, 101)):
+        self.input = prepared_dataset_image(image_file, border=patch_size)
+        self.image_size = image_size(prepared_dataset_image(image_file))
+        self.patch_size = patch_size
+        self.output = np.zeros(self.image_size)
+        self.verbose = TT.verbose
+        for (x, y, p) in load_csv(label_file):
+            self.output[x, y] = 1.0
+
+    def __len__(self):
+        return int(np.prod(self.image_size))
+
+    def __iter__(self):
+        for i in xrange(len(self)):
+            x, y = pixel_at_index(i, self.image_size)
+            yield patch_centered_at(self.input, x, y, self.patch_size), self.output[x, y]

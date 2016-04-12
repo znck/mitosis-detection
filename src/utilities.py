@@ -84,6 +84,13 @@ def np2img(np_array):
     return np_array.transpose(1, 2, 0)
 
 
+def np_append(src, dst):
+    dst = np.asarray(dst)
+    if src is None:
+        return dst
+    return np.concatenate((src, dst))
+
+
 def img2np(img):
     img = np.asarray(img)
     if len(img.shape) is not 3:
@@ -122,6 +129,11 @@ def load_csv(path):
 
 def csv2np(path):
     return np.asarray(load_csv(path))
+
+
+def change_ext(path, new_ext):
+    name, ext = os.path.splitext(path)
+    return name + '.' + new_ext
 
 
 class TT:
