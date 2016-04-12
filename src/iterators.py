@@ -7,7 +7,7 @@ import time
 from keras.utils.generic_utils import Progbar
 
 from utilities import prepared_dataset_image, patch_centered_at, image_size, list_all_files, csv2np, index_at_pixel, \
-    pixel_at_index, TT, load_csv
+    pixel_at_index, TT, load_csv, image_check_point
 
 
 class BatchGenerator(object):
@@ -104,6 +104,7 @@ class Dataset(object):
     def image_size(self):
         if not hasattr(self, '_image_size'):
             self._image_size = image_size(prepared_dataset_image(os.path.join(self.root_path, self.files[0][0])))
+            TT.warn(self._image_size)
         return self._image_size
 
     @property
@@ -198,7 +199,7 @@ class Dataset(object):
             if data_file in positives and pixel in positives[data_file]:
                 p = 1.0
                 ignored += 1
-            x, y = pixel_at_index(index, self.image_size)
+            x, y = pixel_at_index(pixel, self.image_size)
             self._sample[data_file].append([x, y, p])
             self._sample_size += 1
         TT.debug(ignored, "samples out of", self._sample_size, "random samples are positive.")
