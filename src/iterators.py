@@ -41,17 +41,17 @@ class BatchGenerator(object):
             return dst, []
         i = 1
         count = 0
-        TT.debug("Creating batch %d of %d" % (i, self.n))
         data_x = data_y = None
         pool_x = []
         pool_y = []
         start = None
-        if self.verbose:
-            bar = Progbar(self.batch_size)
-            bar.update(0)
         for x, y in self.dataset:
             if start is None:
+                TT.debug("Creating batch %d of %d" % (i, self.n))
                 start = time.clock()
+                if self.verbose:
+                    bar = Progbar(self.batch_size)
+                    bar.update(0)
             data_x, pool_x = append(data_x, pool_x, x)
             data_y, pool_y = append(data_y, pool_y, (y, 1 - y))
             count += 1
@@ -73,9 +73,6 @@ class BatchGenerator(object):
                 count = 0
                 data_x = data_y = None
                 start = None
-                bar = Progbar(self.batch_size)
-                bar.update(0)
-                TT.debug("Creating batch %d of %d" % (i, self.n))
 
 
 class Dataset(object):
