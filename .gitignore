@@ -6,6 +6,7 @@ validating_*/
 *.json
 *.csv
 # Created by https://www.gitignore.io/api/python,linux,osx,pycharm,atom
+logs/
 
 ### Python ###
 # Byte-compiled / optimized / DLL files

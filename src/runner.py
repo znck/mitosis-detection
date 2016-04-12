@@ -4,10 +4,9 @@ import time
 
 import numpy
 
+from callbacks import LearnLog
 from iterators import Dataset, BatchGenerator, ImageIterator
 from utilities import TT, np_append, change_ext
-
-callbacks = []
 
 
 def task_train_filter(args):
@@ -22,11 +21,15 @@ def task_train_filter(args):
         TT.info("Loading weights from %s" % model_saved_weights_path)
         model.load_weights(model_saved_weights_path)
     train_start = time.time()
+    log = LearnLog("Base")
     for epoch in xrange(args.epoch):
         TT.debug(epoch + 1, "of", args.epoch, "epochs")
+        log.epoch = epoch + 1
+        log.batch = 0
         for x, y in dataset_batches:
+            log.batch += 1
             model.fit(x, y, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
-                      callbacks=callbacks, show_accuracy=True, shuffle=True)
+                      callbacks=[log], show_accuracy=True, shuffle=True)
         TT.info("Saving weights to %s" % model_saved_weights_path)
         model.save_weights(model_saved_weights_path, overwrite=True)
     TT.success("Training finished in %.2f hours." % ((time.time() - train_start) / 3600.))
@@ -55,20 +58,26 @@ def task_train_cnn(args):
         TT.info("Loading weights from %s" % model2_saved_weights_path)
         model2.load_weights(model2_saved_weights_path)
     train_start = time.time()
+    log1 = LearnLog("DNN 1")
+    log2 = LearnLog("DNN 2")
     for epoch in xrange(args.epoch):
         TT.debug(epoch + 1, "of", args.epoch, "epochs")
+        log1.epoch = log2.epoch = epoch + 1
+        log1.batch = log2.batch = 0
         for x, y in dataset_batches:
+            log1.batch += 1
+            log2.batch += 1
             outputs = model.predict(x, batch_size=args.mini_batch, verbose=args.verbose)
             # Multiply each window with it's prediction and then pass it to the next layer
             for i in range(len(outputs)):
                 if y[i][0] < 1.:
                     x[i] = numpy.dot(x[i], outputs[i][0])
-            TT.debug("Model 1")
+            TT.debug("Model 1 on epoch %d" % (epoch + 1))
             model1.fit(x, y, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
-                       callbacks=callbacks, show_accuracy=True, shuffle=True)
-            TT.debug("Model 2")
+                       callbacks=[log1], show_accuracy=True, shuffle=True)
+            TT.debug("Model 2 on epoch %d" % (epoch + 1))
             model2.fit(x, y, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
-                       callbacks=callbacks, show_accuracy=True, shuffle=True)
+                       callbacks=[log2], show_accuracy=True, shuffle=True)
         TT.info("Saving weights to %s" % model_saved_weights_path)
         model.save_weights(model_saved_weights_path, overwrite=True)
         model1.save_weights(model1_saved_weights_path, overwrite=True)
