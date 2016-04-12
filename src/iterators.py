@@ -45,11 +45,13 @@ class BatchGenerator(object):
         data_x = data_y = None
         pool_x = []
         pool_y = []
-        start = time.clock()
+        start = None
         if self.verbose:
             bar = Progbar(self.batch_size)
             bar.update(0)
         for x, y in self.dataset:
+            if start is None:
+                start = time.clock()
             data_x, pool_x = append(data_x, pool_x, x)
             data_y, pool_y = append(data_y, pool_y, (y, 1 - y))
             count += 1
@@ -64,13 +66,13 @@ class BatchGenerator(object):
 
                 if i is self.n:
                     bar.update(self.batch_size)
-                    TT.warn("Truncating incomplete batch.", self.batch_size, "is not exact multiple of",
-                            len(self.dataset))
+                    TT.warn("Truncating incomplete batch. (", count, "images)",
+                            self.batch_size, "is not exact multiple of", len(self.dataset))
                     break
                 i += 1
                 count = 0
                 data_x = data_y = None
-                start = time.clock()
+                start = None
                 TT.debug("Creating batch %d of %d" % (i, self.n))
 
 
@@ -104,7 +106,6 @@ class Dataset(object):
     def image_size(self):
         if not hasattr(self, '_image_size'):
             self._image_size = image_size(prepared_dataset_image(os.path.join(self.root_path, self.files[0][0])))
-            TT.warn(self._image_size)
         return self._image_size
 
     @property

@@ -1,4 +1,4 @@
-from keras.layers import BatchNormalization
+from keras.layers import BatchNormalization, Dropout
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.layers.core import Dense, Flatten, Activation
@@ -59,12 +59,13 @@ def model_2(lr=0.002):
 
 def model_base(lr=0.002):
     nn = Sequential()
-    nn.add(BatchNormalization(input_shape=(3, 101, 101)))
     nn.add(Convolution2D(16, 6, 6, init='he_normal'))
     nn.add(LeakyReLU(alpha=.01))
     nn.add(MaxPooling2D())
+    nn.add(Dropout(0.25))
     nn.add(Convolution2D(16, 5, 5, init='he_normal'))
     nn.add(LeakyReLU(alpha=.01))
+    nn.add(Dropout(0.25))
     nn.add(MaxPooling2D())
     nn.add(Convolution2D(16, 3, 3, init='he_normal'))
     nn.add(LeakyReLU(alpha=.01))

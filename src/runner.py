@@ -16,7 +16,7 @@ def task_train_filter(args):
     model = model_base(args.lr)
     model_saved_weights_path = os.path.join(args.path, 'base-model.weights.npy')
     if os.path.exists(model_saved_weights_path):
-        TT.b("> Loading weights from %s" % model_saved_weights_path)
+        TT.info("Loading weights from %s" % model_saved_weights_path)
         model.load_weights(model_saved_weights_path)
     train_start = time.time()
     for epoch in xrange(args.epoch):
@@ -24,6 +24,7 @@ def task_train_filter(args):
         for x, y in dataset_batches:
             model.fit(x, y, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
                       callbacks=callbacks, show_accuracy=True, shuffle=True)
+        TT.info("Saving weights to %s" % model_saved_weights_path)
         model.save_weights(model_saved_weights_path, overwrite=True)
     TT.success("> Training finished in %.2f hours." % ((time.time() - train_start) / 3600.))
 
