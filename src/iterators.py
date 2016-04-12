@@ -17,7 +17,7 @@ class BatchGenerator(object):
         :type batch_size:int
         :type pool_size:int
         """
-        self.verbose = dataset.verbose
+        self.verbose = TT.verbose
         self.dataset = dataset
         self.batch_size = batch_size
         self.pool_size = pool_size
@@ -73,6 +73,8 @@ class BatchGenerator(object):
                 count = 0
                 data_x = data_y = None
                 start = None
+                bar = Progbar(self.batch_size)
+                bar.update(0)
                 TT.debug("Creating batch %d of %d" % (i, self.n))
 
 
