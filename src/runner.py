@@ -34,7 +34,7 @@ def task_train_filter(args):
 
 def task_train_cnn(args):
     ff, mapper = getattr(__import__('dataset'), args.dataset)()
-    dataset = Dataset(root_path=args.path, verbose=args.verbose, name='base-model',
+    dataset = Dataset(root_path=args.path, verbose=args.verbose, name='cnn',
                       mapper=mapper, filename_filter=ff, ratio=9)
     dataset_batches = BatchGenerator(dataset, args.batch)
     from mitosis import model_base, model_1, model_2
