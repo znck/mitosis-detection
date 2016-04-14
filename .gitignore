@@ -7,6 +7,7 @@ validating_*/
 *.csv
 # Created by https://www.gitignore.io/api/python,linux,osx,pycharm,atom
 logs/
+results/
 
 ### Python ###
 # Byte-compiled / optimized / DLL files

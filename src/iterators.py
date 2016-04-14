@@ -1,6 +1,8 @@
 import json
 import os
 import random
+from math import ceil
+
 import numpy as np
 import time
 
@@ -21,9 +23,7 @@ class BatchGenerator(object):
         self.dataset = dataset
         self.batch_size = batch_size
         self.pool_size = pool_size
-        self.n = int(len(dataset) / batch_size)
-        if abs(self.n - (float(len(dataset)) / batch_size)) > 0.000001:
-            TT.warn("Batch size is not exact multiple of", len(dataset))
+        self.n = int(ceil(len(dataset) * 1.0 / batch_size))
 
     def __len__(self):
         return self.n
@@ -63,16 +63,20 @@ class BatchGenerator(object):
                 TT.debug("Completed in", time.clock() - start, "seconds. This batch has", int(np.sum(data_y[:, 0])),
                          "positive pixels and", int(np.sum(data_y[:, 1])), "negative pixels.")
                 yield data_x, data_y
-
-                if i is self.n:
-                    bar.update(self.batch_size)
-                    TT.warn("Truncating incomplete batch. (", count, "images)",
-                            self.batch_size, "is not exact multiple of", len(self.dataset))
-                    break
                 i += 1
                 count = 0
                 data_x = data_y = None
                 start = None
+
+            if i is self.n:
+                bar.update(self.batch_size)
+                i += 1
+                count = 0
+                data_x = data_y = None
+                start = None
+                TT.warn("This batch has", count, "images.",
+                        self.batch_size, "is not exact multiple of", len(self.dataset))
+                yield data_x, data_y
 
 
 class Dataset(object):
