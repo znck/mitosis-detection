@@ -71,6 +71,8 @@ class BatchGenerator(object):
         if self.verbose:
             bar.update(self.batch_size)
         if count > 0:
+            data_x, pool_x = append(data_x, pool_x, None)
+            data_y, pool_y = append(data_y, pool_y, None)
             TT.warn("This batch has", count, "images.", self.batch_size, "is not exact multiple of", len(self.dataset))
             yield data_x, data_y
 

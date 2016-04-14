@@ -61,15 +61,15 @@ def model_2(lr=0.002):
 
 def model_base(lr=0.002):
     nn = Sequential()
-    nn.add(Convolution2D(16, 6, 6, input_shape=(3, 101, 101), init='he_normal'))
+    nn.add(Convolution2D(16, 4, 4, input_shape=(3, 101, 101), init='he_normal'))
     nn.add(LeakyReLU(alpha=.01))
     nn.add(MaxPooling2D())
     nn.add(Dropout(0.25))
-    nn.add(Convolution2D(16, 5, 5, init='he_normal'))
+    nn.add(Convolution2D(32, 4, 4, init='he_normal'))
     nn.add(LeakyReLU(alpha=.01))
     nn.add(Dropout(0.25))
     nn.add(MaxPooling2D())
-    nn.add(Convolution2D(16, 3, 3, init='he_normal'))
+    nn.add(Convolution2D(64, 2, 2, init='he_normal'))
     nn.add(LeakyReLU(alpha=.01))
     nn.add(MaxPooling2D())
     nn.add(Flatten())
