@@ -27,7 +27,7 @@ class BatchGenerator(object):
         self.batch_size = batch_size
         self.pool_size = pool_size
         self.n = int(ceil(len(dataset) * 1.0 / batch_size))
-        self.MAX_NUM = 3
+        self.MAX_NUM = 2
 
     def __len__(self):
         return self.n
