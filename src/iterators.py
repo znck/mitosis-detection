@@ -13,7 +13,7 @@ from utilities import prepared_dataset_image, patch_centered_at, image_size, lis
 
 
 class BatchGenerator(object):
-    def __init__(self, dataset, batch_size, pool_size=2000):
+    def __init__(self, dataset, batch_size, pool_size=4000):
         """
         :type dataset:Dataset|ImageIterator
         :type batch_size:int
@@ -68,15 +68,11 @@ class BatchGenerator(object):
                 data_x = data_y = None
                 start = None
 
-            if i is self.n:
-                bar.update(self.batch_size)
-                i += 1
-                count = 0
-                data_x = data_y = None
-                start = None
-                TT.warn("This batch has", count, "images.",
-                        self.batch_size, "is not exact multiple of", len(self.dataset))
-                yield data_x, data_y
+        if self.verbose:
+            bar.update(self.batch_size)
+        if count > 0:
+            TT.warn("This batch has", count, "images.", self.batch_size, "is not exact multiple of", len(self.dataset))
+            yield data_x, data_y
 
 
 class Dataset(object):
