@@ -1,7 +1,10 @@
 import json
 import os
 import random
+from Queue import Queue
 from math import ceil
+from thread import start_new_thread
+from threading import Lock, Thread, Condition
 
 import numpy as np
 import time
@@ -24,11 +27,14 @@ class BatchGenerator(object):
         self.batch_size = batch_size
         self.pool_size = pool_size
         self.n = int(ceil(len(dataset) * 1.0 / batch_size))
+        self.MAX_NUM = 3
 
     def __len__(self):
         return self.n
 
     def __iter__(self):
+        data = Queue(self.MAX_NUM)
+
         def append(dst, pool, item):
             if item is not None:
                 pool.append(item)
@@ -39,42 +45,38 @@ class BatchGenerator(object):
             if len(pool):
                 return np.concatenate((dst, pool)), []
             return dst, []
-        i = 1
-        count = 0
-        data_x = data_y = None
-        pool_x = []
-        pool_y = []
-        start = None
-        for x, y in self.dataset:
-            if start is None:
-                TT.debug("Creating batch %d of %d" % (i, self.n))
-                start = time.clock()
-                if self.verbose:
-                    bar = Progbar(self.batch_size)
-                    bar.update(0)
-            data_x, pool_x = append(data_x, pool_x, x)
-            data_y, pool_y = append(data_y, pool_y, (y, 1 - y))
-            count += 1
-            if self.verbose:
-                bar.update(count)
-            if count >= self.batch_size:
+
+        def produce():
+            i = 1
+            count = 0
+            data_x = data_y = None
+            pool_x = []
+            pool_y = []
+            for x, y in self.dataset:
+                data_x, pool_x = append(data_x, pool_x, x)
+                data_y, pool_y = append(data_y, pool_y, (y, 1 - y))
+                count += 1
+                if count >= self.batch_size:
+                    data_x, pool_x = append(data_x, pool_x, None)
+                    data_y, pool_y = append(data_y, pool_y, None)
+                    data.put([data_x, data_y])
+                    i += 1
+                    count = 0
+                    data_x = data_y = None
+            if count > 0:
                 data_x, pool_x = append(data_x, pool_x, None)
                 data_y, pool_y = append(data_y, pool_y, None)
-                TT.debug("Completed in", time.clock() - start, "seconds. This batch has", int(np.sum(data_y[:, 0])),
-                         "positive pixels and", int(np.sum(data_y[:, 1])), "negative pixels.")
-                yield data_x, data_y
-                i += 1
-                count = 0
-                data_x = data_y = None
-                start = None
+                data.put([data_x, data_y])
 
-        if self.verbose:
-            bar.update(self.batch_size)
-        if count > 0:
-            data_x, pool_x = append(data_x, pool_x, None)
-            data_y, pool_y = append(data_y, pool_y, None)
-            TT.warn("This batch has", count, "images.", self.batch_size, "is not exact multiple of", len(self.dataset))
-            yield data_x, data_y
+        start_new_thread(produce, ())
+        i = 0
+        while i < self.n:
+            i += 1
+            start = time.clock()
+            X, Y = data.get()
+            yield X, Y
+            TT.debug("batch", i, "of", self.n, "completed in", time.clock() - start, "seconds. This batch has",
+                     int(np.sum(Y[:, 0])), "positive pixels and", int(np.sum(Y[:, 1])), "negative pixels.")
 
 
 class Dataset(object):
