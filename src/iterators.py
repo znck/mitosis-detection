@@ -70,13 +70,14 @@ class BatchGenerator(object):
 
         start_new_thread(produce, ())
         i = 0
-        while i < self.n:
+        while i <= self.n:
             i += 1
             start = time.clock()
             X, Y = data.get()
+            if self.verbose:
+                TT.debug("batch", i, "of", self.n, "completed in", time.clock() - start, "seconds. This batch has",
+                         int(np.sum(Y[:, 0])), "positive pixels and", int(np.sum(Y[:, 1])), "negative pixels.")
             yield X, Y
-            TT.debug("batch", i, "of", self.n, "completed in", time.clock() - start, "seconds. This batch has",
-                     int(np.sum(Y[:, 0])), "positive pixels and", int(np.sum(Y[:, 1])), "negative pixels.")
 
 
 class Dataset(object):
