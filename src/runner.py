@@ -12,7 +12,7 @@ from utilities import TT, np_append, change_ext
 def task_train_filter(args):
     ff, mapper = getattr(__import__('dataset'), args.dataset)()
     dataset = Dataset(root_path=args.path, verbose=args.verbose, name='base-model',
-                      mapper=mapper, filename_filter=ff)
+                      mapper=mapper, filename_filter=ff, rotation=False)
     dataset_batches = BatchGenerator(dataset, args.batch)
     from mitosis import model_base
     model = model_base(args.lr)
@@ -102,9 +102,6 @@ def task_test_filter(args):
     numpy.save(change_ext(args.input, 'predicted.npy'), out)
     numpy.save(change_ext(args.input, 'expected.npy'), dataset.output)
     TT.success("Testing finished in %.2f minutes." % ((time.time() - test_start) / 60.))
-    import scipy.misc
-    scipy.misc.imsave(change_ext(args.input, 'predicted.tiff'), out)
-    scipy.misc.imsave(change_ext(args.input, 'expected.tiff'), dataset.output)
 
 
 def task_test_cnn(args):
@@ -143,11 +140,6 @@ def task_test_cnn(args):
     numpy.save(change_ext(args.input, 'model2.predicted.npy'), out2)
     numpy.save(change_ext(args.input, 'expected.npy'), dataset.output)
     TT.success("Testing finished in %.2f minutes." % ((time.time() - test_start) / 60.))
-    import scipy.misc
-    scipy.misc.imsave(change_ext(args.input, 'predicted.tiff'), out)
-    scipy.misc.imsave(change_ext(args.input, 'model1.predicted.tiff'), out1)
-    scipy.misc.imsave(change_ext(args.input, 'model2.predicted.tiff'), out2)
-    scipy.misc.imsave(change_ext(args.input, 'expected.tiff'), dataset.output)
 
 
 def parse_args():
