@@ -1,18 +1,15 @@
 import json
 import os
 import random
+import time
 from Queue import Queue
 from math import ceil
 from thread import start_new_thread
-from threading import Lock, Thread, Condition
 
 import numpy as np
-import time
 
-from keras.utils.generic_utils import Progbar
-
-from utilities import prepared_dataset_image, patch_centered_at, image_size, list_all_files, csv2np, index_at_pixel, \
-    pixel_at_index, TT, load_csv, image_check_point
+from utilities import prepared_dataset_image, patch_centered_at, image_size, list_all_files, index_at_pixel, \
+    pixel_at_index, TT, load_csv
 
 
 class BatchGenerator(object):
@@ -235,8 +232,10 @@ class DatasetIterator(object):
 
     def generator(self):
         files = self.dataset.keys()
+        random.shuffle(files)
         for filename in files:
             image = prepared_dataset_image(os.path.join(self.root_path, filename), border=self.patch_size)
+            random.shuffle(self.dataset[filename])
             for (x, y, p) in self.dataset[filename]:
                 yield patch_centered_at(image, x, y, self.patch_size), p
 
