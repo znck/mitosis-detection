@@ -69,6 +69,7 @@ def task_train_cnn(args):
             log2.batch += 1
             outputs = model.predict(x, batch_size=args.mini_batch, verbose=args.verbose)
             # Multiply each window with it's prediction and then pass it to the next layer
+            x = 1. - x
             for i in range(len(outputs)):
                 if y[i][0] < 1.:
                     x[i] = numpy.dot(x[i], outputs[i][0])
@@ -125,6 +126,7 @@ def task_test_cnn(args):
     for x, y in dataset_batches:
         tmp = model.predict(x, args.mini_batch, args.verbose)
         out = np_append(out, tmp)
+        x = 1. - x
         for i in range(len(tmp)):
                 if y[i][0] < 1.:
                     x[i] = numpy.dot(x[i], tmp[i][0])
