@@ -57,16 +57,26 @@ def patch_centered_at(image, x, y, size=(101, 101)):
     return image[:, x:x + size[1], y:y + size[0]]
 
 
+def image_rotate(image, k=1):
+    if len(image.shape) is 3:
+        image[0, :, :] = np.rot90(image[0, :, :], k)
+        image[1, :, :] = np.rot90(image[1, :, :], k)
+        image[2, :, :] = np.rot90(image[2, :, :], k)
+    else:
+        return np.rot90(image, k)
+    return image
+
+
 def random_rotation(image):
     ch = random.random()
     if ch <= .5:
         return image
     if ch <= .6:
-        return np.rot90(image)
+        return image_rotate(image)
     if ch <= .7:
-        return np.rot90(image, 2)
+        return image_rotate(image, 2)
     if ch <= .8:
-        return np.rot90(image, 3)
+        return image_rotate(image, 3)
     if ch <= 0.9:
         return np.fliplr(image)
     return np.flipud(image)
@@ -136,7 +146,7 @@ def load_csv(path):
         assert len(points) % 2 == csv_type
         if csv_type == 0:
             # Convert (x, y) -> (x, y, 1.0)
-            result += [[int(points[i+1]), int(points[i]), 1.0] for i in xrange(0, len(points), 2)]
+            result += [[int(points[i + 1]), int(points[i]), 1.0] for i in xrange(0, len(points), 2)]
         elif len(points) == 3:
             result.append([int(points[1]), int(points[0]), float(points[2])])
         else:

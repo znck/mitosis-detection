@@ -239,10 +239,11 @@ class DatasetIterator(object):
             image = prepared_dataset_image(os.path.join(self.root_path, filename), border=self.patch_size)
             random.shuffle(self.dataset[filename])
             for (x, y, p) in self.dataset[filename]:
+                patch = patch_centered_at(image, x, y, self.patch_size)
                 if self.rotation is False:
-                    yield patch_centered_at(image, x, y, self.patch_size), p
+                    yield patch, p
                 else:
-                    yield random_rotation(patch_centered_at(image, x, y, self.patch_size)), p
+                    yield random_rotation(patch), p
 
 
 class ImageIterator(object):
