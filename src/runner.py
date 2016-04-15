@@ -107,6 +107,47 @@ def task_test_filter(args):
     scipy.misc.imsave(change_ext(args.input, 'expected.tiff'), dataset.output)
 
 
+def task_test_cnn(args):
+    dataset = ImageIterator(args.input, args.output)
+    dataset_batches = BatchGenerator(dataset, args.batch)
+    from mitosis import model_base, model_1, model_2
+    model = model_base(0)
+    model1 = model_1(0)
+    model2 = model_2(0)
+    model_saved_weights_path = os.path.join(args.path, 'base-model.weights.npy')
+    model1_saved_weights_path = os.path.join(args.path, 'model1.weights.npy')
+    model2_saved_weights_path = os.path.join(args.path, 'model1.weights.npy')
+    TT.info("Loading weights from %s" % model_saved_weights_path)
+    model.load_weights(model_saved_weights_path)
+    TT.info("Loading weights from %s" % model_saved_weights_path)
+    model1.load_weights(model1_saved_weights_path)
+    TT.info("Loading weights from %s" % model_saved_weights_path)
+    model2.load_weights(model2_saved_weights_path)
+    test_start = time.time()
+    out = out1 = out2 = None
+    for x, y in dataset_batches:
+        tmp = model.predict(x, args.mini_batch, args.verbose)
+        out = np_append(out, tmp)
+        for i in range(len(tmp)):
+                if y[i][0] < 1.:
+                    x[i] = numpy.dot(x[i], tmp[i][0])
+        tmp = model.predict(x, args.mini_batch, args.verbose)
+        out1 = np_append(out1, tmp)
+        tmp = model.predict(x, args.mini_batch, args.verbose)
+        out2 = np_append(out2, tmp)
+    out = numpy.reshape(out[:, 0], dataset.image_size)
+    numpy.save(change_ext(args.input, 'predicted.npy'), out)
+    numpy.save(change_ext(args.input, 'model1.predicted.npy'), out1)
+    numpy.save(change_ext(args.input, 'model2.predicted.npy'), out2)
+    numpy.save(change_ext(args.input, 'expected.npy'), dataset.output)
+    TT.success("Testing finished in %.2f minutes." % ((time.time() - test_start) / 60.))
+    import scipy.misc
+    scipy.misc.imsave(change_ext(args.input, 'predicted.tiff'), out)
+    scipy.misc.imsave(change_ext(args.input, 'model1.predicted.tiff'), out1)
+    scipy.misc.imsave(change_ext(args.input, 'model2.predicted.tiff'), out2)
+    scipy.misc.imsave(change_ext(args.input, 'expected.tiff'), dataset.output)
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Mitosis Detection Task Runner")
     parser.add_argument("task", help="Run task. (train-filter, train, test, predict)",
