@@ -1,5 +1,7 @@
 # coding=utf-8
 # This file contains utility functions.
+import random
+
 import numpy as np
 import os
 import re
@@ -53,6 +55,21 @@ def patch_centered_at(image, x, y, size=(101, 101)):
     y += (size[0]) / 2
     assert image_check_point(x + size[1], y + size[0], image_size(image))
     return image[:, x:x + size[1], y:y + size[0]]
+
+
+def random_rotation(image):
+    ch = random.random()
+    if ch <= .5:
+        return image
+    if ch <= .6:
+        return np.rot90(image)
+    if ch <= .7:
+        return np.rot90(image, 2)
+    if ch <= .8:
+        return np.rot90(image, 3)
+    if ch <= 0.9:
+        return np.fliplr(image)
+    return np.flipud(image)
 
 
 def image_check_point(x, y, size):

@@ -9,7 +9,7 @@ from thread import start_new_thread
 import numpy as np
 
 from utilities import prepared_dataset_image, patch_centered_at, image_size, list_all_files, index_at_pixel, \
-    pixel_at_index, TT, load_csv
+    pixel_at_index, TT, load_csv, random_rotation
 
 
 class BatchGenerator(object):
@@ -79,7 +79,7 @@ class BatchGenerator(object):
 
 class Dataset(object):
     def __init__(self, root_path, patch_size=(101, 101), verbose=False, ratio=1.0, name='dataset', mapper=None,
-                 filename_filter=None):
+                 filename_filter=None, rotation=True):
         TT.debug("Dataset root path set to:", root_path)
         self.name = name
         self.patch_size = patch_size
@@ -88,6 +88,7 @@ class Dataset(object):
         self.verbose = verbose
         self.label_mapper = mapper
         self.filename_filter = filename_filter
+        self.rotation = rotation
 
     def __iter__(self):
         return DatasetIterator(self).generator()
@@ -223,6 +224,7 @@ class DatasetIterator(object):
         self.root_path = dataset.root_path
         self.dataset, self.dataset_size = dataset.data
         self.verbose = dataset.verbose
+        self.rotation = dataset.rotation
 
     def __len__(self):
         return self.dataset_size
@@ -237,7 +239,10 @@ class DatasetIterator(object):
             image = prepared_dataset_image(os.path.join(self.root_path, filename), border=self.patch_size)
             random.shuffle(self.dataset[filename])
             for (x, y, p) in self.dataset[filename]:
-                yield patch_centered_at(image, x, y, self.patch_size), p
+                if self.rotation is False:
+                    yield patch_centered_at(image, x, y, self.patch_size), p
+                else:
+                    yield random_rotation(patch_centered_at(image, x, y, self.patch_size)), p
 
 
 class ImageIterator(object):
