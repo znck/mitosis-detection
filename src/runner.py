@@ -150,8 +150,8 @@ def task_test_cnn(args):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Mitosis Detection Task Runner")
-    parser.add_argument("task", help="Run task. (train-filter, train, test, predict)",
-                        choices=['train-filter', 'train', 'test', 'predict', 'train-cnn', 'test-filter'],
+    parser.add_argument("task", help="Run task. (train-filter, train-cnn, test-filter, test-cnn)",
+                        choices=['train-filter', 'test-cnn', 'train-cnn', 'test-filter'],
                         metavar="task")
     parser.add_argument("path", type=str, help="Directory containing mitosis images", metavar="path")
     parser.add_argument("--epoch", type=int, help="Number of epochs. (Default: 10)", default=10)
@@ -179,6 +179,9 @@ def main():
     elif args.task == 'test-filter':
         TT.debug("Running: Task Test Filter")
         task_test_filter(args)
+    elif args.task == 'test-cnn':
+        TT.debug("Running: Task Test CNN")
+        task_test_cnn(args)
     else:
         parser.print_help()
         exit(0)
