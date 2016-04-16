@@ -138,16 +138,16 @@ def task_test_cnn(args):
         local = numpy.zeros(tmp.shape)
         local[indices] = tmp1
         out1 = np_append(out1, local)
-        tmp1 = model2.predict(x_new, args.mini_batch, args.verbose)
+        tmp1 = model2.predict(numpy.asarray(x_new), args.mini_batch, args.verbose)
         local = numpy.zeros(tmp.shape)
         local[indices] = tmp1
         out2 = np_append(out2, local)
     out = numpy.reshape(out[:, 0], dataset.image_size)
     out1 = numpy.reshape(out1[:, 0], dataset.image_size)
-    # out2 = numpy.reshape(out2[:, 0], dataset.image_size)
+    out2 = numpy.reshape(out2[:, 0], dataset.image_size)
     numpy.save(change_ext(args.input, 'predicted.npy'), out)
     numpy.save(change_ext(args.input, 'model1.predicted.npy'), out1)
-    # numpy.save(change_ext(args.input, 'model2.predicted.npy'), out2)
+    numpy.save(change_ext(args.input, 'model2.predicted.npy'), out2)
     numpy.save(change_ext(args.input, 'expected.npy'), dataset.output)
     TT.success("Testing finished in %.2f minutes." % ((time.time() - test_start) / 60.))
 
