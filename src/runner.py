@@ -134,7 +134,7 @@ def task_test_cnn(args):
             if tmp[i][0] > .3:
                 x_new.append(x[i])
                 indices.append(i)
-        tmp1 = model1.predict(x_new, args.mini_batch, args.verbose)
+        tmp1 = model1.predict(numpy.asarray(x_new), args.mini_batch, args.verbose)
         local = numpy.zeros(tmp.shape)
         local[indices] = tmp1
         out1 = np_append(out1, local)
