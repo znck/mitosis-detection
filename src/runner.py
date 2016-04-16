@@ -113,16 +113,16 @@ def task_test_cnn(args):
     from mitosis import model_base, model_1, model_2
     model = model_base(0)
     model1 = model_1(0)
-    model2 = model_2(0)
+    # model2 = model_2(0)
     model_saved_weights_path = os.path.join(args.path, 'base-model.weights.npy')
     model1_saved_weights_path = os.path.join(args.path, 'model1.weights.npy')
-    model2_saved_weights_path = os.path.join(args.path, 'model2.weights.npy')
+    # model2_saved_weights_path = os.path.join(args.path, 'model2.weights.npy')
     TT.info("Loading weights from %s" % model_saved_weights_path)
     model.load_weights(model_saved_weights_path)
     TT.info("Loading weights from %s" % model1_saved_weights_path)
     model1.load_weights(model1_saved_weights_path)
-    TT.info("Loading weights from %s" % model2_saved_weights_path)
-    model2.load_weights(model2_saved_weights_path)
+    # TT.info("Loading weights from %s" % model2_saved_weights_path)
+    # model2.load_weights(model2_saved_weights_path)
     test_start = time.time()
     out = out1 = out2 = None
     for x, y in dataset_batches:
@@ -134,20 +134,20 @@ def task_test_cnn(args):
             if tmp[i][0] > .3:
                 x_new.append(x[i])
                 indices.append(i)
-        tmp1 = model.predict(x_new, args.mini_batch, args.verbose)
+        tmp1 = model1.predict(x_new, args.mini_batch, args.verbose)
         local = numpy.zeros(tmp.shape)
         local[indices] = tmp1
         out1 = np_append(out1, local)
-        tmp1 = model.predict(x_new, args.mini_batch, args.verbose)
-        local = numpy.zeros(tmp.shape)
-        local[indices] = tmp1
+        # tmp1 = model2.predict(x_new, args.mini_batch, args.verbose)
+        # local = numpy.zeros(tmp.shape)
+        # local[indices] = tmp1
         out2 = np_append(out2, local)
     out = numpy.reshape(out[:, 0], dataset.image_size)
     out1 = numpy.reshape(out1[:, 0], dataset.image_size)
-    out2 = numpy.reshape(out2[:, 0], dataset.image_size)
+    # out2 = numpy.reshape(out2[:, 0], dataset.image_size)
     numpy.save(change_ext(args.input, 'predicted.npy'), out)
     numpy.save(change_ext(args.input, 'model1.predicted.npy'), out1)
-    numpy.save(change_ext(args.input, 'model2.predicted.npy'), out2)
+    # numpy.save(change_ext(args.input, 'model2.predicted.npy'), out2)
     numpy.save(change_ext(args.input, 'expected.npy'), dataset.output)
     TT.success("Testing finished in %.2f minutes." % ((time.time() - test_start) / 60.))
 
