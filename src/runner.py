@@ -78,13 +78,13 @@ def task_train_cnn(args):
             TT.debug("Model 1 on epoch %d" % (epoch + 1))
             model1.fit(numpy.asarray(x_new), numpy.asarray(y_new), batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
                        callbacks=[log1], show_accuracy=True, shuffle=True)
-            # TT.debug("Model 2 on epoch %d" % (epoch + 1))
-            # model2.fit(x_new, y_new, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
-            #            callbacks=[log2], show_accuracy=True, shuffle=True)
+            TT.debug("Model 2 on epoch %d" % (epoch + 1))
+            model2.fit(x_new, y_new, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
+                       callbacks=[log2], show_accuracy=True, shuffle=True)
         TT.info("Saving weights to %s" % model_saved_weights_path)
         model.save_weights(model_saved_weights_path, overwrite=True)
         model1.save_weights(model1_saved_weights_path, overwrite=True)
-        # model2.save_weights(model2_saved_weights_path, overwrite=True)
+        model2.save_weights(model2_saved_weights_path, overwrite=True)
     TT.success("Training finished in %.2f hours." % ((time.time() - train_start) / 3600.))
 
 
@@ -113,16 +113,16 @@ def task_test_cnn(args):
     from mitosis import model_base, model_1, model_2
     model = model_base(0)
     model1 = model_1(0)
-    # model2 = model_2(0)
+    model2 = model_2(0)
     model_saved_weights_path = os.path.join(args.path, 'base-model.weights.npy')
     model1_saved_weights_path = os.path.join(args.path, 'model1.weights.npy')
-    # model2_saved_weights_path = os.path.join(args.path, 'model2.weights.npy')
+    model2_saved_weights_path = os.path.join(args.path, 'model2.weights.npy')
     TT.info("Loading weights from %s" % model_saved_weights_path)
     model.load_weights(model_saved_weights_path)
     TT.info("Loading weights from %s" % model1_saved_weights_path)
     model1.load_weights(model1_saved_weights_path)
-    # TT.info("Loading weights from %s" % model2_saved_weights_path)
-    # model2.load_weights(model2_saved_weights_path)
+    TT.info("Loading weights from %s" % model2_saved_weights_path)
+    model2.load_weights(model2_saved_weights_path)
     test_start = time.time()
     out = out1 = out2 = None
     for x, y in dataset_batches:
@@ -138,9 +138,9 @@ def task_test_cnn(args):
         local = numpy.zeros(tmp.shape)
         local[indices] = tmp1
         out1 = np_append(out1, local)
-        # tmp1 = model2.predict(x_new, args.mini_batch, args.verbose)
-        # local = numpy.zeros(tmp.shape)
-        # local[indices] = tmp1
+        tmp1 = model2.predict(x_new, args.mini_batch, args.verbose)
+        local = numpy.zeros(tmp.shape)
+        local[indices] = tmp1
         out2 = np_append(out2, local)
     out = numpy.reshape(out[:, 0], dataset.image_size)
     out1 = numpy.reshape(out1[:, 0], dataset.image_size)
