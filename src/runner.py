@@ -69,20 +69,27 @@ def task_train_cnn(args):
             log2.batch += 1
             outputs = model.predict(x, batch_size=args.mini_batch, verbose=args.verbose)
             # Multiply each window with it's prediction and then pass it to the next layer
-            x = 1. - x
+            x_new = None
+            y_new = None
             for i in range(len(outputs)):
-                if y[i][0] < 1.:
-                    x[i] = numpy.dot(x[i], outputs[i][0])
+                if outputs[i][0] is 1:
+                   x_new = append(x_new,x[i])
+                   y_new = appned(y_new,y[i])
+                   # X_train[i] = np.dot(X_train[i], outputs[i][0])
+            # x = 1. - x
+            # for i in range(len(outputs)):
+            #     if y[i][0] < 1.:
+            #         x[i] = numpy.dot(x[i], outputs[i][0])
             TT.debug("Model 1 on epoch %d" % (epoch + 1))
-            model1.fit(x, y, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
+            model1.fit(x_new, y_new, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
                        callbacks=[log1], show_accuracy=True, shuffle=True)
-            TT.debug("Model 2 on epoch %d" % (epoch + 1))
-            model2.fit(x, y, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
-                       callbacks=[log2], show_accuracy=True, shuffle=True)
+            # TT.debug("Model 2 on epoch %d" % (epoch + 1))
+            # model2.fit(x_new, y_new, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
+            #            callbacks=[log2], show_accuracy=True, shuffle=True)
         TT.info("Saving weights to %s" % model_saved_weights_path)
         model.save_weights(model_saved_weights_path, overwrite=True)
         model1.save_weights(model1_saved_weights_path, overwrite=True)
-        model2.save_weights(model2_saved_weights_path, overwrite=True)
+        # model2.save_weights(model2_saved_weights_path, overwrite=True)
     TT.success("Training finished in %.2f hours." % ((time.time() - train_start) / 3600.))
 
 
