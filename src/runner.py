@@ -69,19 +69,14 @@ def task_train_cnn(args):
             log2.batch += 1
             outputs = model.predict(x, batch_size=args.mini_batch, verbose=args.verbose)
             # Multiply each window with it's prediction and then pass it to the next layer
-            x_new = None
-            y_new = None
+            x_new = []
+            y_new = []
             for i in range(len(outputs)):
-                if outputs[i][0] is 1:
-                   x_new = append(x_new,x[i])
-                   y_new = appned(y_new,y[i])
-                   # X_train[i] = np.dot(X_train[i], outputs[i][0])
-            # x = 1. - x
-            # for i in range(len(outputs)):
-            #     if y[i][0] < 1.:
-            #         x[i] = numpy.dot(x[i], outputs[i][0])
+                if outputs[i][0] > .3:
+                    x_new.append(x[i])
+                    y_new.append(y[i])
             TT.debug("Model 1 on epoch %d" % (epoch + 1))
-            model1.fit(x_new, y_new, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
+            model1.fit(numpy.asarray(x_new), numpy.asarray(y_new), batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
                        callbacks=[log1], show_accuracy=True, shuffle=True)
             # TT.debug("Model 2 on epoch %d" % (epoch + 1))
             # model2.fit(x_new, y_new, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
@@ -133,14 +128,20 @@ def task_test_cnn(args):
     for x, y in dataset_batches:
         tmp = model.predict(x, args.mini_batch, args.verbose)
         out = np_append(out, tmp)
-        x = 1. - x
+        x_new = []
+        indices = []
         for i in range(len(tmp)):
-                if y[i][0] < 1.:
-                    x[i] = numpy.dot(x[i], tmp[i][0])
-        tmp = model.predict(x, args.mini_batch, args.verbose)
-        out1 = np_append(out1, tmp)
-        tmp = model.predict(x, args.mini_batch, args.verbose)
-        out2 = np_append(out2, tmp)
+            if tmp[i][0] > .3:
+                x_new.append(x[i])
+                indices.append(i)
+        tmp1 = model.predict(x_new, args.mini_batch, args.verbose)
+        local = numpy.zeros(tmp.shape)
+        local[indices] = tmp1
+        out1 = np_append(out1, local)
+        tmp1 = model.predict(x_new, args.mini_batch, args.verbose)
+        local = numpy.zeros(tmp.shape)
+        local[indices] = tmp1
+        out2 = np_append(out2, local)
     out = numpy.reshape(out[:, 0], dataset.image_size)
     out1 = numpy.reshape(out1[:, 0], dataset.image_size)
     out2 = numpy.reshape(out2[:, 0], dataset.image_size)
