@@ -79,7 +79,7 @@ def task_train_cnn(args):
             model1.fit(numpy.asarray(x_new), numpy.asarray(y_new), batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
                        callbacks=[log1], show_accuracy=True, shuffle=True)
             TT.debug("Model 2 on epoch %d" % (epoch + 1))
-            model2.fit(x_new, y_new, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
+            model2.fit(numpy.asarray(x_new), numpy.asarray(y_new), batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
                        callbacks=[log2], show_accuracy=True, shuffle=True)
         TT.info("Saving weights to %s" % model_saved_weights_path)
         model.save_weights(model_saved_weights_path, overwrite=True)
