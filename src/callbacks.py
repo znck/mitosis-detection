@@ -2,8 +2,6 @@ import datetime
 import random
 
 import numpy
-import time
-
 from keras.callbacks import Callback
 
 

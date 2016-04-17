@@ -251,7 +251,8 @@ class ImageIterator(object):
         self.input = prepared_dataset_image(image_file, border=patch_size)
         self.image_size = image_size(prepared_dataset_image(image_file))
         self.patch_size = patch_size
-        self.output = np.zeros(self.image_size)
+        width, height = self.image_size
+        self.output = np.zeros((height, width))
         self.verbose = TT.verbose
         for (col, row, p) in load_csv(label_file):
             self.output[col, row] = 1.0
