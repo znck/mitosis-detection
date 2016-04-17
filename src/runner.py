@@ -72,7 +72,7 @@ def task_train_cnn(args):
             x_new = []
             y_new = []
             for i in range(len(outputs)):
-                if outputs[i][0] > .6:
+                if outputs[i][0] > .6 or y[i][0] >= 1.:
                     x_new.append(x[i])
                     y_new.append(y[i])
             TT.debug("Model 1 on epoch %d" % (epoch + 1))
@@ -138,7 +138,7 @@ def task_test_cnn(args):
         x_new = []
         indices = []
         for i in range(len(tmp)):
-            if tmp[i][0] > .6:
+            if tmp[i][0] > .6 or y[i][0] >= 1.0:
                 x_new.append(x[i])
                 indices.append(i)
         tmp1 = model1.predict(numpy.asarray(x_new), args.mini_batch, args.verbose)
