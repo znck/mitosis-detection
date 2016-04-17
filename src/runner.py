@@ -22,7 +22,7 @@ def task_train_filter(args):
         TT.info("Loading weights from %s" % model_saved_weights_path)
         model.load_weights(model_saved_weights_path)
     train_start = time.time()
-    log = LearnLog("Base")
+    log = LearnLog("filter", args.path)
     for epoch in xrange(args.epoch):
         TT.debug(epoch + 1, "of", args.epoch, "epochs")
         log.on_dataset_epoch_begin(epoch + 1)
@@ -60,8 +60,8 @@ def task_train_cnn(args):
         TT.info("Loading weights from %s" % model2_saved_weights_path)
         model2.load_weights(model2_saved_weights_path)
     train_start = time.time()
-    log1 = LearnLog("DNN 1")
-    log2 = LearnLog("DNN 2")
+    log1 = LearnLog("model1", args.path)
+    log2 = LearnLog("model2", args.path)
     for epoch in xrange(args.epoch):
         TT.debug(epoch + 1, "of", args.epoch, "epochs")
         log1.on_dataset_epoch_end(epoch + 1)

@@ -1,4 +1,5 @@
 import datetime
+import os
 import random
 
 import numpy
@@ -17,9 +18,9 @@ class LearnLog(Callback):
     """
     Record loss history.
     """
-    def __init__(self, name):
+    def __init__(self, name, path):
         super(LearnLog, self).__init__()
-        self.log_file = 'logs/' + name.replace(' ', '-') + '.txt'
+        self.log_file = os.path.join(path, name+'.txt')
         d = datetime.datetime.now()
         with open(self.log_file, 'a') as fd:
             fd.write("# Learn Log: %s Model\n" % name)
