@@ -85,7 +85,6 @@ def image_check_point(x, y, size):
     if 0 <= x <= size[1] and 0 <= y <= size[0]:
         return True
     TT.danger(x, y, size)
-    np.histogram()
     return False
 
 
