@@ -255,7 +255,7 @@ class ImageIterator(object):
         self.output = np.zeros((height, width))
         self.verbose = TT.verbose
         for (col, row, p) in load_csv(label_file):
-            self.output[col, row] = 1.0
+            self.output[row, col] = 1.0
 
     def __len__(self):
         return int(np.prod(self.image_size))
@@ -263,4 +263,4 @@ class ImageIterator(object):
     def __iter__(self):
         for i in xrange(len(self)):
             col, row = pixel_at_index(i, self.image_size)
-            yield patch_centered_at(self.input, row=row, col=col, size=self.patch_size), self.output[col, row]
+            yield patch_centered_at(self.input, row=row, col=col, size=self.patch_size), self.output[row, col]
