@@ -7,13 +7,15 @@ import os
 import re
 
 
-def index_at_pixel(x, y, size):
+def index_at_pixel(col, row, size):
     assert len(size) is 2
-    return x * size[0] + y
+    width, height = size
+    return row * width + col
 
 
 def pixel_at_index(i, size):
-    return i / size[0], i % size[0]
+    width, height = size
+    return i % width, i / width
 
 
 def list_all_files(path, filename_filter=None, mapper=None):
@@ -50,10 +52,14 @@ def prepared_dataset_image(filename, border=None):
     return img2np(image)
 
 
-def patch_centered_at(image, x, y, size=(101, 101)):
-    x += (size[1]) / 2
-    y += (size[0]) / 2
-    return image[:, x:x + size[1], y:y + size[0]]
+def patch_centered_at(image, col, row, size=(101, 101), border=None):
+    width, height = size
+    if border is None:
+        border = size
+    bor_wid, bor_hei = border
+    row = row + bor_hei - height / 2
+    col = col + bor_wid - width / 2
+    return image[:, col:col + width, row:row + height]
 
 
 def image_rotate(image, k=1):
@@ -81,10 +87,11 @@ def random_rotation(image):
     return np.flipud(image)
 
 
-def image_check_point(x, y, size):
-    if 0 <= x <= size[1] and 0 <= y <= size[0]:
+def image_check_point(col, row, size):
+    width, height = size
+    if 0 <= row <= height and 0 <= col <= width:
         return True
-    TT.danger(x, y, size)
+    TT.danger(col, row, size)
     return False
 
 
@@ -103,13 +110,6 @@ def image_normalize(img):
     return img
 
 
-def np2img(np_array):
-    np_array = np.asarray(np_array)
-    if len(np_array.shape) is not 3:
-        raise Exception("np2img function works with 3 dimensional numpy arrays than can be converted to RGB image.")
-    return np_array.transpose(1, 2, 0)
-
-
 def np_append(src, dst):
     dst = np.asarray(dst)
     if src is None:
@@ -117,11 +117,23 @@ def np_append(src, dst):
     return np.concatenate((src, dst))
 
 
+def np2img(np_array):
+    np_array = np.asarray(np_array)
+    if len(np_array.shape) is not 3:
+        raise Exception("np2img function works with 3 dimensional numpy arrays than can be converted to RGB image.")
+    return np_array.transpose(2, 1, 0)
+
+
 def img2np(img):
+    """
+    :param img:
+    :return:
+    """
     img = np.asarray(img)
     if len(img.shape) is not 3:
         raise Exception("img2np function works with RGB images.")
-    return img.transpose(2, 0, 1)
+    # Channel, Breadth, Height or Channel, Width, Height
+    return img.transpose(2, 1, 0)
 
 
 def load_csv(path):
@@ -137,17 +149,18 @@ def load_csv(path):
         # Parse line into list of numbers.
         points = map(lambda x: x, line.strip().split(','))
         # Detect format of csv. csv_type ∈ {1, 2}
-        #   1: Format (y, x, p)
-        #   2: Format (y, x), (y, x) ...
+        #   1: Format (col, row, p)
+        #   2: Format (col, row), (col, row) ...
         if csv_type is None:
             csv_type = len(points) % 2
         # Check data is correct.
         assert len(points) % 2 == csv_type
         if csv_type == 0:
-            # Convert (x, y) -> (x, y, 1.0)
-            result += [[int(points[i + 1]), int(points[i]), 1.0] for i in xrange(0, len(points), 2)]
+            # Convert (col, row, 1.0)
+            result += [[int(points[i]), int(points[i + 1]), 1.0] for i in xrange(0, len(points), 2)]
         elif len(points) == 3:
-            result.append([int(points[1]), int(points[0]), float(points[2])])
+            # Convert (col, row, 1.0)
+            result.append([int(points[0]), int(points[1]), float(points[2])])
         else:
             raise Warning("Line %d in %s has invalid value." % (ln, path))
     return result

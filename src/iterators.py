@@ -174,8 +174,8 @@ class Dataset(object):
             self._positive[data_file] = labels
             self._positive_size += len(labels)
             self._positive_expanded[data_file] = {}
-            for y, x, p in labels:
-                self._positive_expanded[data_file][index_at_pixel(x, y, self.image_size)] = p
+            for col, row, p in labels:
+                self._positive_expanded[data_file][index_at_pixel(col=col, row=row, size=self.image_size)] = p
         TT.debug("Found", self._positive_size, "positive samples.")
         return self.positive
 
@@ -202,8 +202,8 @@ class Dataset(object):
             if data_file in positives and pixel in positives[data_file]:
                 p = 1.0
                 ignored += 1
-            x, y = pixel_at_index(pixel, self.image_size)
-            self._sample[data_file].append([x, y, p])
+            col, row = pixel_at_index(pixel, self.image_size)
+            self._sample[data_file].append([col, row, p])
             self._sample_size += 1
         TT.debug(ignored, "samples out of", self._sample_size, "random samples are positive.")
         self.positive_in_sample = ignored
@@ -238,8 +238,8 @@ class DatasetIterator(object):
         for filename in files:
             image = prepared_dataset_image(os.path.join(self.root_path, filename), border=self.patch_size)
             random.shuffle(self.dataset[filename])
-            for (x, y, p) in self.dataset[filename]:
-                patch = patch_centered_at(image, x, y, self.patch_size)
+            for (col, row, p) in self.dataset[filename]:
+                patch = patch_centered_at(image, row=row, col=col, size=self.patch_size)
                 if self.rotation is False:
                     yield patch, p
                 else:
@@ -253,13 +253,13 @@ class ImageIterator(object):
         self.patch_size = patch_size
         self.output = np.zeros(self.image_size)
         self.verbose = TT.verbose
-        for (x, y, p) in load_csv(label_file):
-            self.output[x, y] = 1.0
+        for (col, row, p) in load_csv(label_file):
+            self.output[col, row] = 1.0
 
     def __len__(self):
         return int(np.prod(self.image_size))
 
     def __iter__(self):
         for i in xrange(len(self)):
-            y, x = pixel_at_index(i, self.image_size)
-            yield patch_centered_at(self.input, x, y, self.patch_size), self.output[x, y]
+            col, row = pixel_at_index(i, self.image_size)
+            yield patch_centered_at(self.input, row=row, col=col, size=self.patch_size), self.output[col, row]

@@ -1,13 +1,11 @@
 # Fix Import
-import os
-import sys
-root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, root+'/src')
-
+from test import root_path
 # Actual Imports
 from utilities import TT
 from iterators import BatchGenerator, Dataset
 from dataset import icpr2012
+
+root = root_path()
 
 # 1. Test BatchGenerator
 flt, mapper = icpr2012()
