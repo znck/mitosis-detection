@@ -15,6 +15,7 @@ def task_train_filter(args):
                       mapper=mapper, filename_filter=ff, rotation=False)
     dataset_batches = BatchGenerator(dataset, args.batch)
     from mitosis import model_base
+    TT.debug("Compile base model.")
     model = model_base(args.lr)
     model_saved_weights_path = os.path.join(args.path, 'base-model.weights.npy')
     if os.path.exists(model_saved_weights_path):
@@ -74,7 +75,7 @@ def task_train_cnn(args):
             x_new = []
             y_new = []
             for i in range(len(outputs)):
-                if outputs[i][0] > .3:
+                if outputs[i][0] > .6:
                     x_new.append(x[i])
                     y_new.append(y[i])
             TT.debug("Model 1 on epoch %d" % (epoch + 1))
@@ -94,6 +95,7 @@ def task_test_filter(args):
     dataset = ImageIterator(args.input, args.output)
     dataset_batches = BatchGenerator(dataset, args.batch)
     from mitosis import model_base
+    TT.debug("Compile base model.")
     model = model_base(args.lr)
     model_saved_weights_path = os.path.join(args.path, 'base-model.weights.npy')
     TT.info("Loading weights from %s" % model_saved_weights_path)
@@ -136,7 +138,7 @@ def task_test_cnn(args):
         x_new = []
         indices = []
         for i in range(len(tmp)):
-            if tmp[i][0] > .5:
+            if tmp[i][0] > .6:
                 x_new.append(x[i])
                 indices.append(i)
         tmp1 = model1.predict(numpy.asarray(x_new), args.mini_batch, args.verbose)
