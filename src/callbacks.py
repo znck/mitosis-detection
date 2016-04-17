@@ -21,8 +21,11 @@ class LearnLog(Callback):
     """
     def __init__(self, name):
         super(LearnLog, self).__init__()
-        self.log_file = get_file_name()
-        open(self.log_file, 'w').write("# Learn Log: %s Model\n" % name)
+        self.log_file = 'logs/' + name.replace(' ', '-') + '.txt'
+        d = datetime.datetime.now()
+        with open(self.log_file, 'a') as fd:
+            fd.write("# Learn Log: %s Model\n" % name)
+            fd.write("# Timestamp: %04d-%02d-%02d %02d:%02d\n" % (d.year, d.month, d.day, d.hour, d.minute))
         self.loss = 0.0
         self.epoch = 1
 
