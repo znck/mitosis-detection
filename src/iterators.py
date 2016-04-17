@@ -260,6 +260,9 @@ class ImageIterator(object):
         return int(np.prod(self.image_size))
 
     def __iter__(self):
+        TT.debug(self.image_size)
+        TT.debug(self.input.shape)
         for i in xrange(len(self)):
-            x, y = pixel_at_index(i, self.image_size)
+            y, x = pixel_at_index(i, self.image_size)
+            TT.debug(i, x, y)
             yield patch_centered_at(self.input, x, y, self.patch_size), self.output[x, y]

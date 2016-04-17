@@ -53,7 +53,6 @@ def prepared_dataset_image(filename, border=None):
 def patch_centered_at(image, x, y, size=(101, 101)):
     x += (size[1]) / 2
     y += (size[0]) / 2
-    assert image_check_point(x + size[1], y + size[0], image_size(image))
     return image[:, x:x + size[1], y:y + size[0]]
 
 
@@ -86,6 +85,7 @@ def image_check_point(x, y, size):
     if 0 <= x <= size[1] and 0 <= y <= size[0]:
         return True
     TT.danger(x, y, size)
+    np.histogram()
     return False
 
 

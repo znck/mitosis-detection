@@ -41,9 +41,11 @@ def task_train_cnn(args):
                       mapper=mapper, filename_filter=ff, ratio=9)
     dataset_batches = BatchGenerator(dataset, args.batch)
     from mitosis import model_base, model_1, model_2
-
+    TT.debug("Compile base model.")
     model = model_base(lr=0)
+    TT.debug("Compile model 1.")
     model1 = model_1(args.lr)
+    TT.debug("Compile model 2.")
     model2 = model_2(args.lr)
     model_saved_weights_path = os.path.join(args.path, 'base-model.weights.npy')
     model1_saved_weights_path = os.path.join(args.path, 'model1.weights.npy')
@@ -111,8 +113,11 @@ def task_test_cnn(args):
     dataset = ImageIterator(args.input, args.output)
     dataset_batches = BatchGenerator(dataset, args.batch)
     from mitosis import model_base, model_1, model_2
+    TT.debug("Compile base model.")
     model = model_base(0)
+    TT.debug("Compile model 1.")
     model1 = model_1(0)
+    TT.debug("Compile model 2.")
     model2 = model_2(0)
     model_saved_weights_path = os.path.join(args.path, 'base-model.weights.npy')
     model1_saved_weights_path = os.path.join(args.path, 'model1.weights.npy')
@@ -131,7 +136,7 @@ def task_test_cnn(args):
         x_new = []
         indices = []
         for i in range(len(tmp)):
-            if tmp[i][0] > .3:
+            if tmp[i][0] > .5:
                 x_new.append(x[i])
                 indices.append(i)
         tmp1 = model1.predict(numpy.asarray(x_new), args.mini_batch, args.verbose)
