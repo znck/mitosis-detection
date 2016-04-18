@@ -30,8 +30,6 @@ def task_train_filter(args):
             model.fit(x, y, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
                       callbacks=[log], show_accuracy=True, shuffle=True)
         log.on_dataset_epoch_end(epoch + 1)
-        TT.info("Saving weights to %s" % model_saved_weights_path)
-        model.save_weights(model_saved_weights_path, overwrite=True)
     TT.success("Training finished in %.2f hours." % ((time.time() - train_start) / 3600.))
 
 
@@ -64,8 +62,8 @@ def task_train_cnn(args):
     log2 = LearnLog("model2", args.path)
     for epoch in xrange(args.epoch):
         TT.debug(epoch + 1, "of", args.epoch, "epochs")
-        log1.on_dataset_epoch_end(epoch + 1)
-        log2.on_dataset_epoch_end(epoch + 1)
+        log1.on_dataset_epoch_begin(epoch + 1)
+        log2.on_dataset_epoch_begin(epoch + 1)
         for x, y in dataset_batches:
             outputs = model.predict(x, batch_size=args.mini_batch, verbose=args.verbose)
             # Multiply each window with it's prediction and then pass it to the next layer
@@ -81,12 +79,8 @@ def task_train_cnn(args):
             TT.debug("Model 2 on epoch %d" % (epoch + 1))
             model2.fit(numpy.asarray(x_new), numpy.asarray(y_new), batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
                        callbacks=[log2], show_accuracy=True, shuffle=True)
-        log1.on_dataset_epoch_begin(epoch + 1)
-        log2.on_dataset_epoch_begin(epoch + 1)
-        TT.info("Saving weights to %s" % model_saved_weights_path)
-        model.save_weights(model_saved_weights_path, overwrite=True)
-        model1.save_weights(model1_saved_weights_path, overwrite=True)
-        model2.save_weights(model2_saved_weights_path, overwrite=True)
+        log1.on_dataset_epoch_end(epoch + 1)
+        log2.on_dataset_epoch_end(epoch + 1)
     TT.success("Training finished in %.2f hours." % ((time.time() - train_start) / 3600.))
 
 
@@ -140,7 +134,7 @@ def task_test_cnn(args):
         x_new = []
         indices = []
         for i in range(len(tmp)):
-            if tmp[i][0] > .6 or y[i][0] >= 1.0:
+            if tmp[i][0] > .6:
                 x_new.append(x[i])
                 indices.append(i)
 
