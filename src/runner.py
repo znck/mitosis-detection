@@ -81,8 +81,8 @@ def task_train_cnn(args):
             TT.debug("Model 2 on epoch %d" % (epoch + 1))
             model2.fit(numpy.asarray(x_new), numpy.asarray(y_new), batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
                        callbacks=[log2], show_accuracy=True, shuffle=True)
-        log1.on_dataset_epoch_end(epoch + 1)
-        log2.on_dataset_epoch_end(epoch + 1)
+        log1.on_dataset_epoch_begin(epoch + 1)
+        log2.on_dataset_epoch_begin(epoch + 1)
         TT.info("Saving weights to %s" % model_saved_weights_path)
         model.save_weights(model_saved_weights_path, overwrite=True)
         model1.save_weights(model1_saved_weights_path, overwrite=True)
@@ -134,6 +134,8 @@ def task_test_cnn(args):
     out = out1 = out2 = None
     for x, y in dataset_batches:
         tmp = model.predict(x, args.mini_batch, args.verbose)
+        local1 = numpy.zeros(tmp.shape)
+        local2 = numpy.zeros(tmp.shape)
         out = np_append(out, tmp)
         x_new = []
         indices = []
@@ -141,14 +143,17 @@ def task_test_cnn(args):
             if tmp[i][0] > .6 or y[i][0] >= 1.0:
                 x_new.append(x[i])
                 indices.append(i)
-        tmp1 = model1.predict(numpy.asarray(x_new), args.mini_batch, args.verbose)
-        local = numpy.zeros(tmp.shape)
-        local[indices] = tmp1
-        out1 = np_append(out1, local)
-        tmp1 = model2.predict(numpy.asarray(x_new), args.mini_batch, args.verbose)
-        local = numpy.zeros(tmp.shape)
-        local[indices] = tmp1
-        out2 = np_append(out2, local)
+
+        x_new = numpy.asarray(x_new)
+        if len(x_new):
+            tmp1 = model1.predict(x_new, args.mini_batch, args.verbose)
+            local1[indices] = tmp1
+        out1 = np_append(out1, local1)
+
+        if len(x_new):
+            tmp2 = model2.predict(x_new, args.mini_batch, args.verbose)
+            local2[indices] = tmp2
+        out2 = np_append(out2, local2)
     width, height = dataset.image_size
     out = numpy.reshape(out[:, 0], (height, width))
     out1 = numpy.reshape(out1[:, 0], (height, width))
