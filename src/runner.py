@@ -137,6 +137,7 @@ def task_test_cnn(args):
         local1 = numpy.zeros(tmp.shape)
         local2 = numpy.zeros(tmp.shape)
         out = np_append(out, tmp)
+        x = 1. - x 
         x_new = []
         indices = []
         for i in range(len(tmp)):
