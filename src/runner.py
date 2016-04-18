@@ -30,6 +30,7 @@ def task_train_filter(args):
             model.fit(x, y, batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
                       callbacks=[log], show_accuracy=True, shuffle=True)
         log.on_dataset_epoch_end(epoch + 1)
+    log.on_dataset_train_end()
     TT.success("Training finished in %.2f hours." % ((time.time() - train_start) / 3600.))
 
 
@@ -81,6 +82,8 @@ def task_train_cnn(args):
                        callbacks=[log2], show_accuracy=True, shuffle=True)
         log1.on_dataset_epoch_end(epoch + 1)
         log2.on_dataset_epoch_end(epoch + 1)
+    log1.on_dataset_train_end()
+    log2.on_dataset_train_end()
     TT.success("Training finished in %.2f hours." % ((time.time() - train_start) / 3600.))
 
 
