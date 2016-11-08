@@ -68,17 +68,20 @@ def task_train_cnn(args):
         for x, y in dataset_batches:
             outputs = model.predict(x, batch_size=args.mini_batch, verbose=args.verbose)
             # Multiply each window with it's prediction and then pass it to the next layer
-            x_new = []
-            y_new = []
+            # x_new = []
+            # y_new = []
+            x = 1. - x
             for i in range(len(outputs)):
-                if outputs[i][0] > .6 or y[i][0] >= 1.:
-                    x_new.append(x[i])
-                    y_new.append(y[i])
+                if y[i][0] < 1.:
+                    # x_new.append(x[i])
+                    # y_new.append(y[i])
+                    x[i] *= outputs[i][0]
+
             TT.debug("Model 1 on epoch %d" % (epoch + 1))
-            model1.fit(numpy.asarray(x_new), numpy.asarray(y_new), batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
+            model1.fit(numpy.asarray(x), numpy.asarray(y), batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
                        callbacks=[log1], show_accuracy=True, shuffle=True)
             TT.debug("Model 2 on epoch %d" % (epoch + 1))
-            model2.fit(numpy.asarray(x_new), numpy.asarray(y_new), batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
+            model2.fit(numpy.asarray(x), numpy.asarray(y), batch_size=args.mini_batch, nb_epoch=1, validation_split=.1,
                        callbacks=[log2], show_accuracy=True, shuffle=True)
         log1.on_dataset_epoch_end(epoch + 1)
         log2.on_dataset_epoch_end(epoch + 1)
@@ -134,6 +137,7 @@ def task_test_cnn(args):
         local1 = numpy.zeros(tmp.shape)
         local2 = numpy.zeros(tmp.shape)
         out = np_append(out, tmp)
+        x = 1. - x 
         x_new = []
         indices = []
         for i in range(len(tmp)):
